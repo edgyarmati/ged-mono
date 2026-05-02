@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.tmp/
+.pi/
+.ged/
+.gedcode/
+.DS_Store
+coverage/
+*.log
+*.swp
+*.swo
+*.tsbuildinfo
+Thumbs.db

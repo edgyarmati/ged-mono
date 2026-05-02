@@ -1,0 +1,73 @@
+name: Release
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version without v prefix (e.g. 0.1.0)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check
+        run: npm run check
+
+      - name: Test
+        run: npm test
+
+      - name: Build release bundle
+        env:
+          OMNICODE_VERSION: ${{ github.event.inputs.version || github.ref_name }}
+        run: |
+          if [[ "$OMNICODE_VERSION" == v* ]]; then
+            export OMNICODE_VERSION="${OMNICODE_VERSION#v}"
+          fi
+          bash ./scripts/release/bundle.sh
+
+      - name: Compute SHA256SUMS
+        run: |
+          cd dist
+          shasum -a 256 omnicode-*.tar.gz > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Copy installer scripts
+        run: |
+          cp install.sh dist/install.sh
+          cp install.ps1 dist/install.ps1
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ startsWith(github.ref_name, 'v') && github.ref_name || format('v{0}', github.event.inputs.version) }}
+          files: |
+            dist/omnicode-*.tar.gz
+            dist/SHA256SUMS
+            dist/install.sh
+            dist/install.ps1
+          generate_release_notes: true
+          draft: false
+          prerelease: false

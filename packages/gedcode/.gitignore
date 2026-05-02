@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.tmp/
+.pi/
+.omni/STATE.md
+.omni/SESSION-SUMMARY.md
+.omni/REPO-MAP.md
+.omni/REPO-MAP.json
+.omni/runtime/
+.DS_Store
+coverage/

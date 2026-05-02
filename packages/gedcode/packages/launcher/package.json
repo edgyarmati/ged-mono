@@ -1,0 +1,29 @@
+{
+  "name": "@gedcode/launcher",
+  "version": "0.3.0",
+  "description": "Launcher that starts OpenCode with GedCode config and plugin loading.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/edgyarmati/ged-mono"
+  },
+  "homepage": "https://github.com/edgyarmati/ged-mono#readme",
+  "bugs": {
+    "url": "https://github.com/edgyarmati/ged-mono/issues"
+  },
+  "type": "module",
+  "files": [
+    "bin",
+    "src"
+  ],
+  "bin": {
+    "gedcode": "./bin/gedcode.js"
+  },
+  "scripts": {
+    "check": "node --check ./bin/gedcode.js",
+    "test": "node --test test/**/*.test.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {}
+}
