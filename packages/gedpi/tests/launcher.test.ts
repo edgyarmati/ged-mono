@@ -62,9 +62,10 @@ describe("ged launcher", () => {
 
     const settings = JSON.parse(
       await readFile(path.join(agentDir, "settings.json"), "utf8"),
-    ) as { quietStartup?: boolean };
+    ) as { quietStartup?: boolean; lastChangelogVersion?: string };
 
     expect(settings.quietStartup).toBe(true);
+    expect(typeof settings.lastChangelogVersion).toBe("string");
   });
 
   test("ensureQuietStartupDefault preserves an existing quiet startup choice", async () => {
@@ -81,10 +82,15 @@ describe("ged launcher", () => {
 
     const settings = JSON.parse(
       await readFile(path.join(agentDir, "settings.json"), "utf8"),
-    ) as { quietStartup?: boolean; theme?: string };
+    ) as {
+      quietStartup?: boolean;
+      theme?: string;
+      lastChangelogVersion?: string;
+    };
 
     expect(settings.quietStartup).toBe(false);
     expect(settings.theme).toBe("rose");
+    expect(typeof settings.lastChangelogVersion).toBe("string");
   });
 
   test("ensureQuietStartupDefault preserves existing settings file permissions", async () => {

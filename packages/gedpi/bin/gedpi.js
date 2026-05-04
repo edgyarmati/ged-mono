@@ -82,22 +82,46 @@ function resolveAgentDir(baseEnv = process.env) {
   return envDir;
 }
 
+function readPiRuntimeVersion() {
+  try {
+    const piPkgPath = path.join(
+      getGedPackageDir(),
+      "node_modules",
+      "@mariozechner",
+      "pi-coding-agent",
+      "package.json",
+    );
+    const pkg = JSON.parse(readFileSync(piPkgPath, "utf8"));
+    return typeof pkg.version === "string" ? pkg.version : null;
+  } catch {
+    return null;
+  }
+}
+
 export function ensureQuietStartupDefault(baseEnv = process.env) {
   const agentDir = resolveAgentDir(baseEnv);
   const settingsFile = path.join(agentDir, "settings.json");
+  const piVersion = readPiRuntimeVersion();
 
   try {
     const raw = readFileSync(settingsFile, "utf8");
     const parsed = JSON.parse(raw);
-    if (
-      parsed &&
-      typeof parsed === "object" &&
-      parsed.quietStartup === undefined
-    ) {
-      writeFileAtomicSync(
-        settingsFile,
-        `${JSON.stringify({ ...parsed, quietStartup: true }, null, 2)}\n`,
-      );
+    if (parsed && typeof parsed === "object") {
+      let dirty = false;
+      if (parsed.quietStartup === undefined) {
+        parsed.quietStartup = true;
+        dirty = true;
+      }
+      if (piVersion && parsed.lastChangelogVersion !== piVersion) {
+        parsed.lastChangelogVersion = piVersion;
+        dirty = true;
+      }
+      if (dirty) {
+        writeFileAtomicSync(
+          settingsFile,
+          `${JSON.stringify(parsed, null, 2)}\n`,
+        );
+      }
     }
   } catch (error) {
     const code =
@@ -109,11 +133,12 @@ export function ensureQuietStartupDefault(baseEnv = process.env) {
       return;
     }
 
+    const defaults = { quietStartup: true };
+    if (piVersion) {
+      defaults.lastChangelogVersion = piVersion;
+    }
     mkdirSync(agentDir, { recursive: true });
-    writeFileAtomicSync(
-      settingsFile,
-      `${JSON.stringify({ quietStartup: true }, null, 2)}\n`,
-    );
+    writeFileAtomicSync(settingsFile, `${JSON.stringify(defaults, null, 2)}\n`);
   }
 }
 

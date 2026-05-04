@@ -25,12 +25,12 @@ const WELCOME_MESSAGES: readonly string[] = [
 ];
 
 export const ASCII_LOGO = [
-  " ██████╗ ███╗   ███╗███╗   ██╗██╗",
-  "██╔═══██╗████╗ ████║████╗  ██║██║",
-  "██║   ██║██╔████╔██║██╔██╗ ██║██║",
-  "██║   ██║██║╚██╔╝██║██║╚██╗██║██║",
-  "╚██████╔╝██║ ╚═╝ ██║██║ ╚████║██║",
-  " ╚═════╝ ╚═╝     ╚═╝╚═╝  ╚═══╝╚═╝",
+  " ██████╗ ███████╗██████╗ ██████╗ ██╗",
+  "██╔════╝ ██╔════╝██╔══██╗██╔══██╗██║",
+  "██║  ███╗█████╗  ██║  ██║██████╔╝██║",
+  "██║   ██║██╔══╝  ██║  ██║██╔═══╝ ██║",
+  "╚██████╔╝███████╗██████╔╝██║     ██║",
+  " ╚═════╝ ╚══════╝╚═════╝ ╚═╝     ╚═╝",
 ];
 
 export const LOGO_WIDTH = Math.max(...ASCII_LOGO.map((l) => l.length));
@@ -68,7 +68,7 @@ export function renderHeader(theme: Theme): Text {
   const welcome = pickWelcome();
 
   const logo = ASCII_LOGO.map((line) => brand(line)).join("\n");
-  const subtitleText = `— P I  v${VERSION} —`;
+  const subtitleText = `— v${VERSION} —`;
   const subtitle = theme.fg("muted", centerIn(subtitleText, LOGO_WIDTH));
   const taglineText = "plan · build · verify";
   const tagline = theme.fg("muted", centerIn(taglineText, LOGO_WIDTH));
