@@ -3,12 +3,12 @@
 # Requires: curl, tar, Node.js >= 22
 #
 # Usage:
-#   curl -fsSL https://github.com/edgyarmati/gedcode/releases/latest/download/install.sh | bash
+#   curl -fsSL https://github.com/edgyarmati/ged-mono/releases/latest/download/install.sh | bash
 #   # or pin a version:
 #   GEDCODE_VERSION=0.3.0 curl -fsSL ... | bash
 set -euo pipefail
 
-REPO_SLUG="edgyarmati/gedcode"
+REPO_SLUG="edgyarmati/ged-mono"
 VERSION="${GEDCODE_VERSION:-0.3.0}"
 DATA_DIR="${GEDCODE_DATA_DIR:-$HOME/.local/share/gedcode}"
 BIN_DIR="${GEDCODE_BIN_DIR:-$HOME/.local/bin}"
@@ -65,8 +65,8 @@ TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
 
 ASSET_NAME="gedcode-${VERSION}.tar.gz"
-ASSET_URL="https://github.com/${REPO_SLUG}/releases/download/v${VERSION}/${ASSET_NAME}"
-SUMS_URL="https://github.com/${REPO_SLUG}/releases/download/v${VERSION}/SHA256SUMS"
+ASSET_URL="https://github.com/${REPO_SLUG}/releases/download/gedcode-v${VERSION}/${ASSET_NAME}"
+SUMS_URL="https://github.com/${REPO_SLUG}/releases/download/gedcode-v${VERSION}/SHA256SUMS"
 ARCHIVE="$TMP_DIR/${ASSET_NAME}"
 SUMS_FILE="$TMP_DIR/SHA256SUMS"
 

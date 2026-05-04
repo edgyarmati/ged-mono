@@ -22,7 +22,7 @@ npm run check   # tsc --noEmit across all workspaces
 npm test        # node --test across all workspaces
 ```
 
-Contributor bootstrap (one-time): `./scripts/setup`. Release artifacts: `bash ./scripts/release/bundle.sh` (driven by `.github/workflows/release.yml` on `v*` tags).
+Contributor bootstrap (one-time): `./scripts/setup`. Release artifacts: `bash ./scripts/release/bundle.sh` (driven by `.github/workflows/release-gedcode.yml` on `gedcode-v*` tags).
 
 ## Workflow rules (these mirror `packages/plugin/src/resources/instructions/gedcode-agent.md` — follow them when working on this repo)
 

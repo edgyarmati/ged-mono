@@ -2,13 +2,13 @@
 # Requires: PowerShell 5.1+, Node.js >= 22
 #
 # Usage:
-#   irm https://github.com/edgyarmati/gedcode/releases/latest/download/install.ps1 | iex
+#   irm https://github.com/edgyarmati/ged-mono/releases/latest/download/install.ps1 | iex
 #   # or pin a version:
 #   $env:GEDCODE_VERSION = '0.3.0'; irm ... | iex
 
 $ErrorActionPreference = 'Stop'
 
-$RepoSlug = 'edgyarmati/gedcode'
+$RepoSlug = 'edgyarmati/ged-mono'
 $Version = if ($env:GEDCODE_VERSION) { $env:GEDCODE_VERSION } else { '0.3.0' }
 $DataDir = if ($env:GEDCODE_DATA_DIR) {
   $env:GEDCODE_DATA_DIR
@@ -63,8 +63,8 @@ New-Item -ItemType Directory -Force -Path $TempDir | Out-Null
 
 try {
   $AssetName = "gedcode-$Version.tar.gz"
-  $AssetUrl = "https://github.com/$RepoSlug/releases/download/v$Version/$AssetName"
-  $SumsUrl = "https://github.com/$RepoSlug/releases/download/v$Version/SHA256SUMS"
+  $AssetUrl = "https://github.com/$RepoSlug/releases/download/gedcode-v$Version/$AssetName"
+  $SumsUrl = "https://github.com/$RepoSlug/releases/download/gedcode-v$Version/SHA256SUMS"
   $ArchivePath = Join-Path $TempDir $AssetName
   $SumsPath = Join-Path $TempDir 'SHA256SUMS'
 
