@@ -54,3 +54,14 @@ Each package has its own detailed docs — read them when working in that packag
 - @packages/gedcode/CLAUDE.md
 - @packages/gedcode/AGENTS.md
 - @packages/gedpi/AGENTS.md (canonical source of truth for GedPi)
+
+## Releases
+
+Packages release independently with separate tag prefixes:
+
+- **GedPi**: `gedpi-v*` tags → npm publish (`gedpi`) + GitHub release
+- **GedCode**: `gedcode-v*` tags → tarball + installers + GitHub release
+
+Both packages use `CHANGELOG.md` with `## Unreleased` at the top. Every user-facing change must add an entry under `## Unreleased` before committing. On release, rename to `## X.Y.Z - YYYY-MM-DD` and add a fresh `## Unreleased`.
+
+See each package's `AGENTS.md` for the full release runbook.

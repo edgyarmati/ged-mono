@@ -203,18 +203,36 @@ npm test
 ## Release setup assets
 
 - `scripts/setup` bootstraps a fresh checkout for contributors and pre-release testing.
-- root `install.sh` and `install.ps1` are the target public installers for native launcher releases.
-- `scripts/install.sh` is now a compatibility wrapper to the root POSIX installer.
-- `.github/workflows/release.yml` builds and publishes the tagged generic JS bundle plus installer scripts.
+- `install.sh` and `install.ps1` are the target public installers.
+- `.github/workflows/release-gedcode.yml` builds and publishes the tagged JS bundle plus installer scripts on `gedcode-v*` tags.
 - `scripts/release/bundle.sh` defines the current release artifact layout/naming.
 - `docs/release-checklist.md` is the required release runbook.
 - the `gedcode` launcher package in `packages/launcher/` is still the current dev/runtime entrypoint, with release direction toward standalone GedCode binaries plus a managed per-user OpenCode runtime.
+
+## Releases
+
+GedCode ships as a tarball + installer scripts. It is NOT published to npm.
+
+### How to release
+
+1. Ensure `CHANGELOG.md` has all changes under `## Unreleased`.
+2. Bump version: `node scripts/sync-version.mjs` (updates all version references).
+3. Rename `## Unreleased` to `## X.Y.Z - YYYY-MM-DD` and add a new `## Unreleased` section at the top.
+4. Commit: `chore: release gedcode X.Y.Z`.
+5. Tag: `git tag gedcode-vX.Y.Z`.
+6. Push: `git push origin main --tags`.
+7. The `release-gedcode.yml` workflow will: check → test → bundle → compute SHA256 → create GitHub release with tarball, checksums, and installers.
+
+### Tag format
+
+- GedCode releases use `gedcode-v*` tags (e.g., `gedcode-v0.4.0`).
+- GedPi releases use `gedpi-v*` tags — they are independent.
 
 ## Repo hygiene
 
 For GedCode, `.ged/` is intentionally split.
 
-Every committed change must also update `CHANGELOG.md` with the user-facing change, fix, test, documentation, or process note that should appear in the next release. Keep the changelog current during each slice so release prep is a cleanup pass, not archaeology.
+Every committed change that is user-facing (features, fixes, behavior changes, dependency bumps, deprecations) must add an entry under `## Unreleased` in `CHANGELOG.md`. Group entries by category (`### Features`, `### Fixes`, `### Documentation`, etc.). Keep the changelog current during each slice — don't batch it at release time. On release, `## Unreleased` is renamed to `## X.Y.Z - YYYY-MM-DD` and a fresh `## Unreleased` header is added.
 
 Durable `.ged` files may be committed when they reflect real project intent:
 - `PROJECT.md`

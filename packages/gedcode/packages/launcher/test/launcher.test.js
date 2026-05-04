@@ -181,7 +181,7 @@ test("native installer assets and launcher package metadata are present", async 
   );
   const posixInstaller = await readFile(path.join(repoRoot, "install.sh"), "utf8");
   const windowsInstaller = await readFile(path.join(repoRoot, "install.ps1"), "utf8");
-  const releaseWorkflow = await readFile(path.join(repoRoot, ".github", "workflows", "release.yml"), "utf8");
+  const releaseWorkflow = await readFile(path.join(repoRoot, "..", "..", ".github", "workflows", "release-gedcode.yml"), "utf8");
   const bundleScript = await readFile(path.join(repoRoot, "scripts", "release", "bundle.sh"), "utf8");
   const launcherBin = await readFile(path.join(repoRoot, "packages", "launcher", "bin", "gedcode.js"), "utf8");
 
@@ -192,10 +192,10 @@ test("native installer assets and launcher package metadata are present", async 
   assert.match(windowsInstaller, /releases\/download/);
   assert.match(launcherBin, /getManagedOpenCodeBinaryCandidates/);
   assert.match(launcherBin, /getNativeLauncherReleaseMetadata/);
-  assert.match(releaseWorkflow, /name: Release/);
+  assert.match(releaseWorkflow, /name: Release GedCode/);
   assert.match(releaseWorkflow, /softprops\/action-gh-release/);
-  assert.match(releaseWorkflow, /dist\/install\.sh/);
-  assert.match(releaseWorkflow, /dist\/install\.ps1/);
+  assert.match(releaseWorkflow, /packages\/gedcode\/dist\/install\.sh/);
+  assert.match(releaseWorkflow, /packages\/gedcode\/dist\/install\.ps1/);
   assert.match(bundleScript, /gedcode-.*\.tar\.gz/);
   assert.match(bundleScript, /plugin/);
 
