@@ -282,6 +282,7 @@ export async function ensureGedCodeConfig({
     $schema: "https://opencode.ai/config.json",
     default_agent: "gedcode",
     share: "manual",
+    plugin: [pluginShimPath],
   };
   await writeFileSecure(configPath, `${JSON.stringify(config, null, 2)}\n`);
 

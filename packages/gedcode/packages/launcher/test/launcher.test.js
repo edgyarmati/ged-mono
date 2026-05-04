@@ -81,6 +81,7 @@ test("ensureGedCodeConfig writes config and plugin shim", async () => {
     assert.equal(result.configRoot, path.join(home, ".config", "gedcode", "opencode"));
     assert.equal(config.default_agent, "gedcode");
     assert.equal(config.share, "manual");
+    assert.deepStrictEqual(config.plugin, [result.pluginShimPath]);
     assert.match(shim, /file:\/\/\/tmp\/fake-plugin\.js/);
   });
 });
