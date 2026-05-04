@@ -16,11 +16,11 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build --workspaces --if-present",
-    "check": "node scripts/sync-version.mjs --check && npm run check --workspaces --if-present",
+    "build": "npm run build -w @gedcode/plugin --if-present",
+    "check": "node scripts/sync-version.mjs --check && npm run check -w @gedcode/plugin -w @gedcode/launcher --if-present",
     "setup": "./scripts/setup",
     "sync-version": "node scripts/sync-version.mjs",
-    "test": "npm run test --workspaces --if-present"
+    "test": "npm run test -w @gedcode/plugin -w @gedcode/launcher --if-present"
   },
   "engines": {
     "node": ">=22"
