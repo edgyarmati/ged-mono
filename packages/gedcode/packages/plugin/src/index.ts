@@ -7,6 +7,16 @@ import { spawn } from "node:child_process";
 import type { Plugin } from "@opencode-ai/plugin";
 import { tool } from "@opencode-ai/plugin";
 
+import {
+  initCheckpointState,
+  isGitCommitCommand,
+  hasSkipCheckpointMarker,
+  parseCheckpointState,
+  recordCheckpoint,
+  validateAllVerifierCheckpoints,
+  validatePlannerCheckpoint,
+} from "@ged/shared-checkpoints";
+
 type OmniMode = "on" | "off";
 
 type CommandFrontmatter = {
@@ -89,6 +99,7 @@ export type WorkflowSettings = {
   protectedBranches: string[];
   requireFeatureBranchForChanges: boolean;
   allowProtectedBranchChanges: boolean;
+  allowCheckpointBypass: boolean;
   offerPrOnCompletion: boolean;
   autoCreatePrOnCompletion: boolean;
 };
@@ -132,6 +143,7 @@ export const DEFAULT_WORKFLOW_SETTINGS: WorkflowSettings = {
   protectedBranches: ["main", "master"],
   requireFeatureBranchForChanges: true,
   allowProtectedBranchChanges: false,
+  allowCheckpointBypass: false,
   offerPrOnCompletion: true,
   autoCreatePrOnCompletion: false,
 };
@@ -469,6 +481,9 @@ function parseWorkflowSettings(value: unknown): Partial<WorkflowSettings> {
   }
   if (typeof value.allowProtectedBranchChanges === "boolean") {
     parsed.allowProtectedBranchChanges = value.allowProtectedBranchChanges;
+  }
+  if (typeof value.allowCheckpointBypass === "boolean") {
+    parsed.allowCheckpointBypass = value.allowCheckpointBypass;
   }
   if (typeof value.offerPrOnCompletion === "boolean") {
     parsed.offerPrOnCompletion = value.offerPrOnCompletion;
@@ -1365,6 +1380,37 @@ export async function appendSessionSummary(
   return summaryPath;
 }
 
+// ─── Checkpoint state management ──────────────────────────────────────
+
+const CHECKPOINT_FILE = "checkpoints.json";
+
+async function checkpointFilePath(directory: string): Promise<string> {
+  // Use the same runtime directory as STATE.md
+  const runtimePaths = await activeRuntimePaths(directory);
+  return path.join(runtimePaths.baseDir, CHECKPOINT_FILE);
+}
+
+async function readCheckpointStateFile(directory: string) {
+  try {
+    const filePath = await checkpointFilePath(directory);
+    const raw = await readFile(filePath, "utf8");
+    return parseCheckpointState(raw);
+  } catch {
+    return null;
+  }
+}
+
+async function writeCheckpointStateFile(
+  directory: string,
+  state: ReturnType<typeof initCheckpointState>,
+) {
+  const filePath = await checkpointFilePath(directory);
+  await mkdir(path.dirname(filePath), { recursive: true });
+  await writeFileAtomic(filePath, `${JSON.stringify(state, null, 2)}\n`);
+}
+
+// ─── End checkpoint state ─────────────────────────────────────────────
+
 async function listSkills(): Promise<SkillInfo[]> {
   const skillDir = await resolveResourcePath("skills");
   const entries = await readdir(skillDir, { withFileTypes: true });
@@ -1917,6 +1963,31 @@ export const GedCodePlugin: Plugin = async ({ directory }, options) => {
     },
 
     "tool.execute.before": async (input, output) => {
+      // ── Auto-recording: detect subagent dispatches ──
+      if (input.tool === "task" || input.tool === "Task") {
+        const taskArgs = (output.args ?? {}) as Record<string, unknown>;
+        const subagentType = taskArgs.subagent_type ?? taskArgs.agent ?? taskArgs.subagentType;
+        if (
+          typeof subagentType === "string" &&
+          (subagentType === "ged-explorer" ||
+            subagentType === "ged-planner" ||
+            subagentType === "ged-verifier")
+        ) {
+          try {
+            let state = await readCheckpointStateFile(directory);
+            if (!state) {
+              state = initCheckpointState("non-trivial", "Subagent dispatched — auto-classified");
+            }
+            const now = new Date().toISOString();
+            const isTaskLevel = subagentType === "ged-explorer" || subagentType === "ged-verifier";
+            state = recordCheckpoint(state, { agent: subagentType, timestamp: now, status: "completed" }, isTaskLevel ? "auto" : undefined);
+            await writeCheckpointStateFile(directory, state);
+          } catch {
+            // Non-fatal — don't block the subagent dispatch if recording fails
+          }
+        }
+      }
+
       // RTK integration: rewrite bash commands through RTK for token savings.
       // RTK handles passthrough for commands it doesn't recognize, so we
       // prefix all bash commands and let RTK decide what to compress.
@@ -1958,8 +2029,34 @@ export const GedCodePlugin: Plugin = async ({ directory }, options) => {
         throw new Error(planningGuardMessage(planningReadiness));
       }
 
+      // ── Planner checkpoint guard ──
+      // For source file writes/edits, check that ged-planner was dispatched for non-trivial work.
+      if (fileMutatingTool) {
+        const checkpointState = await readCheckpointStateFile(directory);
+        const plannerValidation = validatePlannerCheckpoint(checkpointState);
+        if (!plannerValidation.valid) {
+          throw new Error(
+            `GedCode planner guard: non-trivial work requires dispatching ged-planner before editing source files. Missing checkpoints: ${plannerValidation.missing.join(", ")}. Dispatch ged-planner via the subagent tool, or reclassify the task as trivial.`,
+          );
+        }
+      }
+
       const settings = await readGedCodeSettings(directory, { homeDir: settingsHomeDir });
       await assertProtectedBranchAllowsMutation(directory, settings);
+
+      // ── Verifier checkpoint guard ──
+      // For git commit commands, check that ged-verifier was dispatched for non-trivial work.
+      if (originalBashCommand && isGitCommitCommand(originalBashCommand)) {
+        if (!hasSkipCheckpointMarker(originalBashCommand) || !settings.workflow.allowCheckpointBypass) {
+          const checkpointState = await readCheckpointStateFile(directory);
+          const verifierValidation = validateAllVerifierCheckpoints(checkpointState);
+          if (!verifierValidation.valid) {
+            throw new Error(
+              `GedCode verifier guard: non-trivial work requires dispatching ged-verifier before committing. Missing checkpoints: ${verifierValidation.missing.join(", ")}. Dispatch ged-verifier via the subagent tool for clean-context review.`,
+            );
+          }
+        }
+      }
 
       if (input.tool === "bash" && commandKey && typeof args[commandKey] === "string") {
         const originalCommand = args[commandKey] as string;
