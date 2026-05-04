@@ -13,6 +13,7 @@
   },
   "type": "module",
   "workspaces": [
+    "packages/shared",
     "packages/gedcode",
     "packages/gedcode/packages/*"
   ],
