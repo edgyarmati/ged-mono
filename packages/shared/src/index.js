@@ -101,16 +101,17 @@ export function parseCheckpointState(raw) {
 
 /**
  * Check whether the planner checkpoint exists for non-trivial work.
- * Returns valid=true for trivial or missing state (no enforcement).
+ * Returns valid=false for null state (classification is required before edits).
+ * Returns valid=true for trivial classification (no planner needed).
  * @param {CheckpointState | null} state
  * @returns {CheckpointValidation}
  */
 export function validatePlannerCheckpoint(state) {
   if (!state) {
     return {
-      valid: true,
-      missing: [],
-      warning: "No checkpoint state found — subagents may not be enabled",
+      valid: false,
+      missing: ["classification"],
+      warning: "No checkpoint state found — classify the task and write .ged/runtime/checkpoints.json before editing source files.",
     };
   }
   if (state.classification === "trivial") {
@@ -125,7 +126,8 @@ export function validatePlannerCheckpoint(state) {
 
 /**
  * Check whether the verifier checkpoint exists for a specific task slice.
- * Returns valid=true for trivial or missing state (no enforcement).
+ * Returns valid=false for null state (classification is required before commits).
+ * Returns valid=true for trivial classification (no verifier needed).
  * @param {CheckpointState | null} state
  * @param {string} taskId
  * @returns {CheckpointValidation}
@@ -133,9 +135,9 @@ export function validatePlannerCheckpoint(state) {
 export function validateVerifierCheckpoint(state, taskId) {
   if (!state) {
     return {
-      valid: true,
-      missing: [],
-      warning: "No checkpoint state found — subagents may not be enabled",
+      valid: false,
+      missing: ["classification"],
+      warning: "No checkpoint state found — classify the task and write .ged/runtime/checkpoints.json before committing.",
     };
   }
   if (state.classification === "trivial") {
@@ -150,6 +152,7 @@ export function validateVerifierCheckpoint(state, taskId) {
 
 /**
  * Check verifier checkpoints for ALL task slices that have any checkpoint data.
+ * Returns valid=false for null state (classification is required before commits).
  * Returns invalid if any in-progress slice lacks a verifier checkpoint.
  * This prevents the agent from committing with partially-verified changes.
  * @param {CheckpointState | null} state
@@ -158,9 +161,9 @@ export function validateVerifierCheckpoint(state, taskId) {
 export function validateAllVerifierCheckpoints(state) {
   if (!state) {
     return {
-      valid: true,
-      missing: [],
-      warning: "No checkpoint state found — subagents may not be enabled",
+      valid: false,
+      missing: ["classification"],
+      warning: "No checkpoint state found — classify the task and write .ged/runtime/checkpoints.json before committing.",
     };
   }
   if (state.classification === "trivial") {

@@ -13,6 +13,7 @@ import {
   hasSkipCheckpointMarker,
   parseCheckpointState,
   recordCheckpoint,
+  shouldAutoEscalate,
   validateAllVerifierCheckpoints,
   validatePlannerCheckpoint,
 } from "@ged/shared-checkpoints";
@@ -1903,6 +1904,9 @@ export const GedCodePlugin: Plugin = async ({ directory }, options) => {
   const instructionPrompt = await readInstructionPrompt();
   const rtkAvailable = await checkRtkAvailable();
 
+  // ── Session-level touched-files tracking for auto-escalation ──
+  const touchedSourceFiles = new Set<string>();
+
   return {
     async config(config) {
       const settings = await readGedCodeSettings(directory, { homeDir: settingsHomeDir });
@@ -2032,9 +2036,32 @@ export const GedCodePlugin: Plugin = async ({ directory }, options) => {
       // ── Planner checkpoint guard ──
       // For source file writes/edits, check that ged-planner was dispatched for non-trivial work.
       if (fileMutatingTool) {
-        const checkpointState = await readCheckpointStateFile(directory);
+        let checkpointState = await readCheckpointStateFile(directory);
+
+        // Auto-escalation: if classified as trivial but touching >1 source file,
+        // reclassify to non-trivial and persist.
+        if (checkpointState?.classification === "trivial") {
+          const targetPath = extractFilePath(args);
+          if (targetPath) {
+            touchedSourceFiles.add(targetPath);
+          }
+          if (shouldAutoEscalate(checkpointState.classification, [...touchedSourceFiles])) {
+            checkpointState = {
+              ...checkpointState,
+              classification: "non-trivial",
+              classificationReason: "Auto-escalated: >1 source file touched in this session",
+            };
+            await writeCheckpointStateFile(directory, checkpointState);
+          }
+        }
+
         const plannerValidation = validatePlannerCheckpoint(checkpointState);
         if (!plannerValidation.valid) {
+          if (plannerValidation.missing.includes("classification")) {
+            throw new Error(
+              "GedCode planner guard: you must classify the task before editing source files. Write your classification to .ged/runtime/checkpoints.json first.",
+            );
+          }
           throw new Error(
             `GedCode planner guard: non-trivial work requires dispatching ged-planner before editing source files. Missing checkpoints: ${plannerValidation.missing.join(", ")}. Dispatch ged-planner via the subagent tool, or reclassify the task as trivial.`,
           );
@@ -2051,6 +2078,11 @@ export const GedCodePlugin: Plugin = async ({ directory }, options) => {
           const checkpointState = await readCheckpointStateFile(directory);
           const verifierValidation = validateAllVerifierCheckpoints(checkpointState);
           if (!verifierValidation.valid) {
+            if (verifierValidation.missing.includes("classification")) {
+              throw new Error(
+                "GedCode verifier guard: you must classify the task before committing. Write your classification to .ged/runtime/checkpoints.json first.",
+              );
+            }
             throw new Error(
               `GedCode verifier guard: non-trivial work requires dispatching ged-verifier before committing. Missing checkpoints: ${verifierValidation.missing.join(", ")}. Dispatch ged-verifier via the subagent tool for clean-context review.`,
             );

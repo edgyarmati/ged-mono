@@ -6,7 +6,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 
 import type { PluginInput } from "@opencode-ai/plugin";
 
-import { GedCodePlugin, ensureOmniDir, setOmniMode } from "../src/index.ts";
+import { GedCodePlugin, ensureOmniDir, setOmniMode, branchNameToWorkId, readCurrentGitBranch } from "../src/index.ts";
 
 type ToolExecuteBefore = (
   input: { tool: string },
@@ -32,6 +32,23 @@ async function buildHook(directory: string): Promise<ToolExecuteBefore> {
 }
 
 async function writeRealPlanning(directory: string) {
+  // Write a trivial classification checkpoint so the planner guard allows writes
+  // Use branch-scoped runtime path if on a branch, else root
+  const branch = await readCurrentGitBranch(directory).catch(() => null);
+  const runtimeId = branch ? branchNameToWorkId(branch) : "root";
+  const runtimeDir = path.join(directory, ".ged", "runtime", runtimeId);
+  await mkdir(runtimeDir, { recursive: true });
+  await writeFile(
+    path.join(runtimeDir, "checkpoints.json"),
+    JSON.stringify({
+      classification: "trivial",
+      classificationReason: "test setup",
+      planCheckpoints: {},
+      taskCheckpoints: {},
+    }),
+    "utf8",
+  );
+
   const omniDir = path.join(directory, ".ged");
   await writeFile(
     path.join(omniDir, "SPEC.md"),
@@ -215,8 +232,8 @@ test("tool.execute.before rejects source mutation on protected branches", async 
   await withTempDir(async (dir) => {
     await ensureOmniDir(dir);
     await setOmniMode(dir, "on");
-    await writeRealPlanning(dir);
     await writeGitBranch(dir, "main");
+    await writeRealPlanning(dir);
     const hook = await buildHook(dir);
 
     await assert.rejects(
@@ -233,8 +250,8 @@ test("tool.execute.before allows protected branch mutation with project settings
   await withTempDir(async (dir) => {
     await ensureOmniDir(dir);
     await setOmniMode(dir, "on");
-    await writeRealPlanning(dir);
     await writeGitBranch(dir, "main");
+    await writeRealPlanning(dir);
     await mkdir(path.join(dir, ".gedcode"), { recursive: true });
     await writeFile(
       path.join(dir, ".gedcode", "settings.json"),
