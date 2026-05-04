@@ -336,8 +336,15 @@ describe("brain orchestration integration", () => {
   });
 
   it("omits orchestration prompt when no settings file", async () => {
-    const suffix = await buildWorkflowPromptSuffix(tmpDir);
-    expect(suffix).not.toContain("Subagent orchestration");
+    const fakeHome = await mkdtemp(path.join(os.tmpdir(), "ged-test-home-"));
+    try {
+      const suffix = await buildWorkflowPromptSuffix(tmpDir, {
+        homeDir: fakeHome,
+      });
+      expect(suffix).not.toContain("Subagent orchestration");
+    } finally {
+      await rm(fakeHome, { recursive: true, force: true });
+    }
   });
 });
 

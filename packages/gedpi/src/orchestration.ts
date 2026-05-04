@@ -137,55 +137,75 @@ export function buildOrchestrationPrompt(agentsEnabled: boolean): string {
     return "";
   }
 
-  return `## Subagent orchestration (mandatory for non-trivial work)
+  return `## Subagent orchestration — MANDATORY
 
-Single-writer invariant: you are the sole active-worktree writer, synthesizer, and decision owner. Subagents inject read-only intelligence; they do not own product decisions, commits, PR decisions, or final verification judgments.
+You MUST use the subagent tool to dispatch ged-explorer, ged-planner, and ged-verifier as described here. This is not optional. "I can handle it myself" is not a valid reason to skip.
 
-### Task classification (FIRST STEP for every new request)
+Single-writer invariant: you are the sole active-worktree writer, synthesizer, and decision owner. Subagents inject read-only intelligence — they do not own product decisions, commits, or final judgments.
 
-Before any planning or implementation, classify the incoming request:
+### Step 2: Task classification — REQUIRED FIRST ACTION
 
-- **TRIVIAL**: Questions, documentation-only changes, README edits, config tweaks, single-line formatting fixes, adding comments. Skip the subagent workflow entirely.
-- **NON-TRIVIAL**: Feature implementation, bug fixes, refactoring, multi-file changes, architectural work. Mandatory subagent checkpoints apply below.
+Your very first action after understanding the user's request MUST be writing a classification to .ged/runtime/checkpoints.json. Do this BEFORE reading code, before planning, before anything else.
 
-Write your classification and reason to .ged/runtime/checkpoints.json using:
+**TRIVIAL** (subagent dispatch not required):
+- Answering a question about the codebase
+- Fixing a typo or changing a config value
+- Editing a README or comment
+
+**NON-TRIVIAL** (subagent dispatch REQUIRED — no exceptions):
+- Creating any new file (HTML, JS, CSS, anything)
+- Implementing any feature, even a "simple" one
+- Bug fixes
+- Refactoring
+- Multi-file changes
+- Anything involving design decisions
+
+When in doubt, classify as NON-TRIVIAL.
+
+Write to .ged/runtime/checkpoints.json:
 \`\`\`json
-{"classification": "trivial|non-trivial", "classificationReason": "...", "planCheckpoints": {}, "taskCheckpoints": {}}
+{"classification": "non-trivial", "classificationReason": "Creating new HTML page with design decisions", "planCheckpoints": {}, "taskCheckpoints": {}}
 \`\`\`
 
-### Mandatory checkpoints for non-trivial work
+### Steps 3, 6, 8: Subagent dispatch — exact tool calls
 
-When subagents are enabled and the task is non-trivial, use mandatory intelligence checkpoints:
-
-1. **ged-explorer** — Dispatch via the subagent tool for evidence-backed codebase discovery when relevant code context is not already known. Use before planning to understand existing patterns, dependencies, and risks.
-
-2. **ged-planner** — Dispatch via the subagent tool before finalizing or materially changing .ged/SPEC.md, .ged/TASKS.md, or .ged/TESTS.md. The planner critiques your plan and identifies missing context, edge cases, and test seams. You adjudicate the findings and write the final planning files.
-
-3. **ged-verifier** — Dispatch via the subagent tool for clean-context review before committing meaningful implementation changes. The verifier reviews your diff and tests with minimal prior assumptions. You adjudicate each finding (accept, reject, needs-user), fix accepted issues, and rerun verification.
-
-After each subagent completes, record the checkpoint in .ged/runtime/checkpoints.json:
-\`\`\`json
-{"agent": "ged-verifier", "timestamp": "...", "status": "completed", "findingCount": 2, "blocksCommit": false}
+**Step 3 — ged-explorer** (before planning):
+\`\`\`
+Use the subagent tool with: { "agent": "ged-explorer", "task": "Investigate <what you need to know about the codebase>" }
 \`\`\`
 
-### Skip policy
-
-If a checkpoint is skipped because the task is trivial, subagents are disabled or unavailable, the call fails, or the user explicitly asks not to delegate, record a checkpoint with status "skipped" and a skip reason. Example:
-\`\`\`json
-{"agent": "ged-planner", "timestamp": "...", "status": "skipped", "skipReason": "User asked to skip planning critique"}
+**Step 6 — ged-planner** (before finalizing plan):
+\`\`\`
+Use the subagent tool with: { "agent": "ged-planner", "task": "Critique this plan: <your plan summary>. Look for missing edge cases, test gaps, and risks." }
 \`\`\`
 
-### Clean-context review flow (before every meaningful commit)
+**Step 8 — ged-verifier** (clean-context review before committing):
+\`\`\`
+Use the subagent tool with: { "agent": "ged-verifier", "task": "Clean-context review: check the current diff for logic bugs, security issues, and test gaps." }
+\`\`\`
 
-1. Run all planned checks from .ged/TESTS.md
-2. Dispatch ged-verifier for clean-context review of the diff and tests
-3. Adjudicate each finding: accept (fix before commit), reject (record reason), or needs-user (ask)
-4. Fix accepted issues and rerun verification
-5. Record the checkpoint, then commit
+After ged-verifier completes, adjudicate each finding: accept (fix before commit), reject (record reason), or needs-user (ask the user). Then record the result:
+\`\`\`json
+{"agent": "ged-verifier", "timestamp": "2026-05-04T10:00:00Z", "status": "completed", "findingCount": 2, "blocksCommit": false}
+\`\`\`
+
+### Skip policy — ONLY for these specific reasons
+
+A subagent checkpoint may ONLY be skipped when:
+- The task was classified as TRIVIAL
+- The user explicitly said "skip subagents" or "don't delegate"
+- The subagent tool call failed (retry once first)
+
+"The task seemed simple" or "I could handle it myself" are NOT valid skip reasons.
+
+When skipping, you MUST record it:
+\`\`\`json
+{"agent": "ged-planner", "timestamp": "...", "status": "skipped", "skipReason": "User explicitly asked to skip"}
+\`\`\`
 
 ### Intercom usage
 
-Use pi-intercom only for child-to-parent clarification when a subagent is blocked on a scope or product decision. Child agents must ask instead of guessing.
+Use pi-intercom only for child-to-parent clarification when a subagent is blocked on a scope or product decision.
 
 There is no writer subagent role. Do not delegate source edits, planning-file ownership, scope decisions, verification adjudication, commits, pushes, or PR decisions to subagents.`;
 }
