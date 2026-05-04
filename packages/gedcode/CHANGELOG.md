@@ -4,6 +4,19 @@
 
 ### Features
 
+- **Mandatory subagent dispatch** — strengthened orchestration prompt from "optional checkpoints" to explicit mandatory dispatch requirements with task classification, exact tool-call formats, and enumerated skip reasons.
+- **Plugin array in generated config** — the launcher now includes `plugin: [shimPath]` in the generated `opencode.json` so the plugin activates without manual setup.
+- Added release instructions and changelog discipline rules to `AGENTS.md`.
+- Added monorepo CI workflow (`ci.yml`) running GedCode check + test on every push and PR.
+- Added monorepo release workflow (`release-gedcode.yml`) triggered by `gedcode-v*` tags.
+
+### Fixes
+
+- Fixed root `package.json` scripts to target specific workspaces instead of `--workspaces`.
+- Fixed `REPO_SLUG` in `install.sh` and `install.ps1` to point at `edgyarmati/ged-mono`.
+- Fixed download URLs in installers to use `gedcode-v*` tag prefix.
+- Fixed `bundle.sh` to resolve `@opencode-ai/plugin` via Node require instead of hardcoded `node_modules/` path.
+
 - **Project-local skill maker workflow** — when `find-skills` cannot find adequate coverage, GedCode can create a narrow local skill under `.ged/skills/` for the current project without installing global user skills.
 - **Workflow settings primitives** — GedCode now resolves protected-branch workflow policy from global `~/.gedcode/settings.json` plus optional project-local `.gedcode/settings.json` overrides and exposes the effective policy in state output.
 - **Protected-branch workflow guard** — source edits and mutating shell commands are blocked on protected branches such as `main`/`master` by default once planning is ready, unless global or project GedCode settings explicitly allow direct protected-branch changes.
