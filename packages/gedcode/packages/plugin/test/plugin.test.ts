@@ -963,8 +963,8 @@ test("plugin config registers optional Omni subagents and ged-agents command", a
     assert.equal(agents["ged-verifier"]?.model, "openai/verifier-model");
     assert.equal(agents[removedWriterName], undefined);
     assert.match(String(agents.gedcode?.prompt), /Single-writer invariant/);
-    assert.match(String(agents.gedcode?.prompt), /mandatory intelligence checkpoints/);
-    assert.match(String(agents.gedcode?.prompt), /record a concise skip reason/);
+    assert.match(String(agents.gedcode?.prompt), /Mandatory subagent checkpoints/);
+    assert.match(String(agents.gedcode?.prompt), /MUST record a skip reason/);
     assert.match(String(agents.gedcode?.prompt), /clean-context review/);
     assert.match(String(agents.gedcode?.prompt), /There is no writer subagent role/);
     assert.match(String(agents["ged-explorer"]?.prompt), /discovery packet/);
@@ -996,10 +996,10 @@ test("verification and agent instruction resources require clean-context review 
   const verificationSkill = await readFile(path.join(resourcesDir, "skills", "ged-verification.md"), "utf8");
 
   assert.match(agentInstructions, /single-writer invariant/);
-  assert.match(agentInstructions, /mandatory checkpoints for non-trivial change requests/);
+  assert.match(agentInstructions, /MANDATORY for non-trivial work/);
   assert.match(agentInstructions, /skip reason/);
   assert.match(agentInstructions, /clean-context review before commit/);
-  assert.match(agentInstructions, /there is no writer subagent role/);
+  assert.match(agentInstructions, /There is no writer subagent role/);
   assert.match(verificationSkill, /clean-context review of the diff\/tests/);
   assert.match(verificationSkill, /adjudicate accepted vs rejected findings/);
 });

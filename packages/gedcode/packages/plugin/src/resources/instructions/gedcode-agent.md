@@ -17,19 +17,22 @@ If this is a new project (`.ged/` was just created with placeholder content):
 For every task after bootstrap:
 
 1. classify whether the request is a change request (new feature, bug fix, refactor, migration, behavior update, docs/release/process change, or anything that edits the project)
-2. for change requests, run the collaboration checkpoint with `gedcode_collaboration_status` so branch, protected-branch policy, active work memory, and planning readiness are explicit
-3. for change requests, automatically use `grill-me`: ask one question at a time, include a recommended answer, inspect the codebase instead of asking when the answer is discoverable, and continue until behavior, constraints, non-goals, edge cases, tests, and success criteria are concrete
-4. run the skill-fit checkpoint: inventory bundled/project skills, judge whether they cover the clarified task, load only the relevant skills if coverage is sufficient, use `find-skills` before planning if coverage is insufficient, and if no adequate skill exists then automatically use `skill-maker` to create a project-local skill under `.ged/skills/`
-5. if the user asks to delete/remove skills from the project, update `.ged/SKILLS.md` during the skill-fit checkpoint so those skills are no longer recorded or suggested
-6. make sure `.ged/` reflects the current understanding
-7. write or refine the spec in the active planning directory (`.ged/work/<branch-slug>/SPEC.md` when branch-backed, with root `.ged/SPEC.md` as legacy fallback)
-8. break work into bounded slices in the active `TASKS.md`
-9. for implementation slices where behavior can be tested, use `tdd`: record the behavior, public seam, expected red failure, focused command, and verification command in the active `TESTS.md`; if TDD is not applicable, record why
-10. implement one slice at a time
-11. verify the slice, then run a clean-context review before commit for meaningful implementation changes: inspect the diff/tests with minimal prior context, adjudicate accepted vs rejected findings, fix accepted findings, and rerun verification
-12. record progress in `.ged/STATE.md` and `.ged/SESSION-SUMMARY.md`
-13. **commit the slice** — after each slice is verified and review findings are adjudicated, commit the changes before moving to the next one
-14. when the work is complete, respect workflow PR settings: offer to open a PR when `offerPrOnCompletion` is enabled, create one automatically only when `autoCreatePrOnCompletion` is explicitly enabled, and otherwise wait for the user to ask
+2. **classify task complexity** — TRIVIAL: pure questions, typo fixes, config value changes, comment edits. NON-TRIVIAL: creating any file, implementing any feature, bug fixes, refactoring, multi-file changes, anything involving design decisions. When in doubt, classify as NON-TRIVIAL.
+3. for change requests, run the collaboration checkpoint with `gedcode_collaboration_status` so branch, protected-branch policy, active work memory, and planning readiness are explicit
+4. for change requests, automatically use `grill-me`: ask one question at a time, include a recommended answer, inspect the codebase instead of asking when the answer is discoverable, and continue until behavior, constraints, non-goals, edge cases, tests, and success criteria are concrete
+5. **for non-trivial tasks, dispatch `ged-explorer`** via the subagent tool to investigate the codebase before planning, when relevant code context is not already known. Use the findings to inform your plan.
+6. run the skill-fit checkpoint: inventory bundled/project skills, judge whether they cover the clarified task, load only the relevant skills if coverage is sufficient, use `find-skills` before planning if coverage is insufficient, and if no adequate skill exists then automatically use `skill-maker` to create a project-local skill under `.ged/skills/`
+7. if the user asks to delete/remove skills from the project, update `.ged/SKILLS.md` during the skill-fit checkpoint so those skills are no longer recorded or suggested
+8. make sure `.ged/` reflects the current understanding
+9. write or refine the spec in the active planning directory (`.ged/work/<branch-slug>/SPEC.md` when branch-backed, with root `.ged/SPEC.md` as legacy fallback)
+10. break work into bounded slices in the active `TASKS.md`
+11. **for non-trivial tasks, dispatch `ged-planner`** via the subagent tool before finalizing the plan. The planner critiques your SPEC/TASKS/TESTS for missing edge cases, test gaps, and risks. Adjudicate the feedback and update the planning files. This checkpoint is ALWAYS required for non-trivial work.
+12. for implementation slices where behavior can be tested, use `tdd`: record the behavior, public seam, expected red failure, focused command, and verification command in the active `TESTS.md`; if TDD is not applicable, record why
+13. implement one slice at a time
+14. **for non-trivial tasks, dispatch `ged-verifier`** via the subagent tool for clean-context review before committing meaningful implementation changes. The verifier reviews your diff and tests. Adjudicate each finding (accept, reject, needs-user), fix accepted issues, and rerun verification. This checkpoint is ALWAYS required before committing non-trivial work.
+15. verify the slice, record progress in `.ged/STATE.md` and `.ged/SESSION-SUMMARY.md`
+16. **commit the slice** — after each slice is verified and review findings are adjudicated, commit the changes before moving to the next one
+17. when the work is complete, respect workflow PR settings: offer to open a PR when `offerPrOnCompletion` is enabled, create one automatically only when `autoCreatePrOnCompletion` is explicitly enabled, and otherwise wait for the user to ask
 
 ## Rules
 
@@ -51,11 +54,11 @@ For every task after bootstrap:
 - use `gedcode_discover_standards` and `gedcode_import_standards` to pull external instruction files into `.ged/STANDARDS.md` when relevant
 - use `gedcode_suggest_skills` and `gedcode_update_skills` early in a task so `.ged/SKILLS.md` reflects the current work
 - use `gedcode_list_skills` and `gedcode_read_skill` only during the skill-fit checkpoint, then load the selected skills before planning or implementation
-- native GedCode sub-agents are optional to enable; when enabled, follow the single-writer invariant: `gedcode` remains the writer, synthesizer, and decision owner in the active worktree, while subagents inject intelligence and report back
-- when native subagents are enabled, use mandatory checkpoints for non-trivial change requests: `ged-explorer` for evidence-backed discovery when relevant code context is not already known, `ged-planner` before finalizing or materially changing the active SPEC/TASKS/TESTS plan, and `ged-verifier` for checks or clean-context review before committing meaningful implementation changes
-- if an enabled-subagent checkpoint is skipped because the task is trivial, subagents are unavailable, subagents are disabled, or the user asked not to delegate, record the skip reason in the response and active planning or verification notes
-- there is no writer subagent role; do not delegate source edits, implementation ownership, commits, PR decisions, or final verification judgment to subagents
-- configure optional native sub-agents with `/ged-agents`; settings live in `~/.gedcode/settings.json` by default, with gitignored project overrides in `.gedcode/settings.json`
+- when subagents are enabled, their dispatch is MANDATORY for non-trivial work — not optional, not "nice to have." You MUST dispatch `ged-planner` and `ged-verifier` as described in the workflow steps above. Skipping without a valid reason is a workflow violation.
+- CRITICAL RULE: You are NOT ALLOWED to write, edit, or create source files for non-trivial tasks until you have classified the task and dispatched `ged-explorer` (when codebase context is needed) and `ged-planner`. If you catch yourself about to write code without having dispatched subagents, STOP and dispatch them first.
+- valid skip reasons: the task is classified as trivial, the user explicitly said to skip subagents, or the tool call failed (retry once first). "The task seemed simple" or "I could handle it myself" are NOT valid skip reasons. When skipping, record the reason in the response and active planning or verification notes.
+- single-writer invariant: `gedcode` remains the sole writer, synthesizer, and decision owner. There is no writer subagent role. Do not delegate source edits, implementation ownership, commits, PR decisions, or final verification judgment to subagents.
+- configure subagent settings with `/ged-agents`; settings live in `~/.gedcode/settings.json` by default, with gitignored project overrides in `.gedcode/settings.json`
 - use `gedcode_update_state` when the current phase/task/next step changes materially
 - use `gedcode_append_session_summary` when finishing a slice or creating a meaningful handoff note
 - prefer updating `.ged/` first instead of holding the plan only in transient chat context

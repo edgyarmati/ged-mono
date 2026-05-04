@@ -26,7 +26,7 @@ For `setup`:
    - use the invoking/orchestrator model for sub-agents, or choose a shared default model?
    - optionally choose per-agent models for `ged-explorer`, `ged-planner`, and `ged-verifier`.
    - optionally choose provider options by using an object config such as `{ "model": "openai/gpt-5.5", "reasoningEffort": "high" }` instead of a plain model string.
-5. Explain the orchestration model before recommending models: GedCode uses a single-writer invariant. The primary `gedcode` agent remains the active-worktree writer and decision owner; subagents are read-only intelligence contributors. There is no writer subagent role. Native subagents are optional to enable, but when enabled they are mandatory checkpoints for non-trivial change requests unless the agent records a skip reason.
+5. Explain the orchestration model before recommending models: GedCode uses a single-writer invariant. The primary `gedcode` agent remains the active-worktree writer and decision owner; subagents are read-only intelligence contributors. There is no writer subagent role. Native subagents are optional to enable, but when enabled their dispatch is MANDATORY for non-trivial work — `ged-planner` and `ged-verifier` are mandatory checkpoints. Skipping without a valid recorded reason is a workflow violation.
 6. Recommend sensible models using, in order:
     - project `model-recommendations.md`
     - global `model-recommendations.md`

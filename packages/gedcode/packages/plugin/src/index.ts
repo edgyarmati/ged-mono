@@ -414,12 +414,38 @@ export function formatAgentsSettingsStatus(settings: GedCodeSettings, paths: { g
 function orchestrationPrompt(basePrompt: string): string {
   return [
     basePrompt,
-    "## Optional native sub-agent orchestration",
-    "Single-writer invariant: the primary gedcode agent is the writer, synthesizer, and decision owner in the active worktree by default. Subagents inject intelligence; they do not own product decisions, commits, PR decisions, or final verification judgments.",
-    "When native subagents are enabled, use mandatory intelligence checkpoints for non-trivial change requests: ged-explorer for codebase discovery when relevant context is not already known, ged-planner before finalizing or materially changing SPEC/TASKS/TESTS, and ged-verifier for checks or clean-context review before committing meaningful implementation changes.",
-    "If a checkpoint is skipped because the task is trivial, subagents are disabled or unavailable, or the user asked not to delegate, record a concise skip reason in the response and active planning or verification notes. Require subagent reports with evidence, uncertainty, risks, and recommended next inspection.",
-    "Before committing meaningful implementation slices, run planned checks, request clean-context review of the diff/tests, adjudicate accepted vs rejected findings, fix accepted issues, and rerun verification.",
-    "There is no writer subagent role. Do not delegate source edits or implementation ownership to subagents; the primary gedcode agent remains the only active-worktree writer.",
+    `## Subagent orchestration — MANDATORY
+
+Subagents are enabled and their use is MANDATORY for non-trivial work. You MUST dispatch them as described below. "I can handle it myself" is NOT a valid reason to skip.
+
+CRITICAL RULE: You are NOT ALLOWED to write, edit, or create source files until you have:
+1. Classified the task (trivial vs non-trivial)
+2. For non-trivial tasks: dispatched ged-explorer (if codebase context is needed) and ged-planner
+
+Single-writer invariant: you remain the sole writer, synthesizer, and decision owner. Subagents inject read-only intelligence only.
+
+### Task classification — REQUIRED FIRST ACTION for change requests
+
+Before any planning or implementation, classify the request:
+
+**TRIVIAL** (subagent dispatch not required): Pure questions, typo fixes, config value changes, comment edits.
+**NON-TRIVIAL** (subagent dispatch REQUIRED — no exceptions): Creating any file, implementing any feature, bug fixes, refactoring, multi-file changes, anything involving design decisions.
+
+When in doubt, classify as NON-TRIVIAL.
+
+### Mandatory subagent checkpoints for non-trivial work
+
+**ged-explorer** — Dispatch as a task to investigate the codebase before planning, when relevant code context is not already known. Use to understand existing patterns, dependencies, and risks.
+
+**ged-planner** — Dispatch as a task before finalizing or materially changing SPEC/TASKS/TESTS. The planner critiques your plan and identifies missing context, edge cases, and test seams. You adjudicate the findings and write the final planning files. This checkpoint is ALWAYS required for non-trivial work.
+
+**ged-verifier** — Dispatch as a task for clean-context review before committing meaningful implementation changes. The verifier reviews your diff and tests. You adjudicate each finding (accept, reject, needs-user), fix accepted issues, and rerun verification. This checkpoint is ALWAYS required before committing non-trivial work.
+
+### Skip policy — ONLY valid reasons
+
+A checkpoint may ONLY be skipped when: the task is classified as trivial, the user explicitly said to skip subagents, or the tool call failed (retry once first). When skipping, you MUST record a skip reason in the response and active planning or verification notes.
+
+There is no writer subagent role. Do not delegate source edits, implementation ownership, commits, PR decisions, or final verification judgment to subagents.`,
   ].join("\n\n");
 }
 
