@@ -4,6 +4,9 @@
 
 ### Features
 
+- **Hard enforcement of planner and verifier checkpoints** — write/edit to source files is now structurally blocked until ged-planner has been dispatched for non-trivial work, and git commit is blocked until ged-verifier has been dispatched. Guards are implemented in the `tool.execute.before` hook and cannot be bypassed by prompt instructions alone. Escape hatch available via `workflow.allowCheckpointBypass` setting.
+- **Shared checkpoint package** (`@ged/shared-checkpoints`) — extracted checkpoint state types, validation, git commit detection, and auto-recording into a shared package used by both GedCode and GedPi. Ensures .ged/ memory format stays interchangeable.
+- **Auto-recording of subagent dispatches** — when a Task tool dispatches ged-explorer, ged-planner, or ged-verifier, the checkpoint is automatically recorded without relying on the agent to write it manually.
 - **Mandatory subagent dispatch** — strengthened orchestration prompt from "optional checkpoints" to explicit mandatory dispatch requirements with task classification, exact tool-call formats, and enumerated skip reasons.
 - **Plugin array in generated config** — the launcher now includes `plugin: [shimPath]` in the generated `opencode.json` so the plugin activates without manual setup.
 - Added release instructions and changelog discipline rules to `AGENTS.md`.

@@ -196,6 +196,7 @@ test("readGedCodeSettings merges global defaults with project overrides", async 
       protectedBranches: ["main", "trunk"],
       requireFeatureBranchForChanges: true,
       allowProtectedBranchChanges: true,
+      allowCheckpointBypass: false,
       offerPrOnCompletion: false,
       autoCreatePrOnCompletion: true,
     });
