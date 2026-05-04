@@ -1,4 +1,4 @@
-export const GEDCODE_REPOSITORY = "edgyarmati/gedcode";
+export const GEDCODE_REPOSITORY = "edgyarmati/ged-mono";
 export const GEDCODE_RELEASE_CHANNEL = "latest";
 export const GEDCODE_BINARY_VERSION = "0.3.0";
 export const OPENCODE_VERSION_TARGET = "1.14.30";
@@ -24,7 +24,7 @@ export function getLatestReleaseAssetUrl(platform, arch) {
 }
 
 export function getVersionedReleaseAssetUrl(platform, arch, version) {
-  return `https://github.com/${GEDCODE_REPOSITORY}/releases/download/v${version}/${getLauncherAssetName(platform, arch, version)}`;
+  return `https://github.com/${GEDCODE_REPOSITORY}/releases/download/gedcode-v${version}/${getLauncherAssetName(platform, arch, version)}`;
 }
 
 export function getRequiredOpenCodeVersion() {

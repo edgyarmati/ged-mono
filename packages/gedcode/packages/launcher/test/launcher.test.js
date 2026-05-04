@@ -167,7 +167,7 @@ test("release metadata matches the generic JS bundle artifact", () => {
   assert.equal(metadata.launcherVersion, v);
   assert.match(metadata.opencodeVersion, /^\d+\.\d+\.\d+$/);
   assert.equal(metadata.assetName, `gedcode-${v}.tar.gz`);
-  assert.match(metadata.assetUrl, new RegExp(`releases/download/v${escaped}/gedcode-${escaped}\\.tar\\.gz$`));
+  assert.match(metadata.assetUrl, new RegExp(`releases/download/gedcode-v${escaped}/gedcode-${escaped}\\.tar\\.gz$`));
 });
 
 test("managed OpenCode target uses the latest tested version", () => {

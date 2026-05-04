@@ -9,14 +9,14 @@ GedCode currently ships as a JavaScript bundle and requires Node.js 22 or newer.
 ### macOS / Linux
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/edgyarmati/gedcode/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/edgyarmati/ged-mono/main/install.sh | bash
 gedcode
 ```
 
 ### Windows
 
 ```powershell
-irm https://raw.githubusercontent.com/edgyarmati/gedcode/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/edgyarmati/ged-mono/main/install.ps1 | iex
 gedcode
 ```
 
@@ -220,7 +220,7 @@ npm test
 
 RTK is optional — GedCode works without it. When present, bash tool calls to git, test runners, ls, grep, and other supported commands are automatically compressed for token savings.
 
-Release artifacts are produced by `.github/workflows/release.yml` from tagged versions. See [`docs/release-checklist.md`](docs/release-checklist.md) for the release runbook.
+Release artifacts are produced by `.github/workflows/release-gedcode.yml` from tagged versions. See [`docs/release-checklist.md`](docs/release-checklist.md) for the release runbook.
 
 ## Packages and layout
 
