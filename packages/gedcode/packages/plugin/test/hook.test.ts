@@ -31,23 +31,26 @@ async function buildHook(directory: string): Promise<ToolExecuteBefore> {
   return hook as unknown as ToolExecuteBefore;
 }
 
-async function writeRealPlanning(directory: string) {
-  // Write a trivial classification checkpoint so the planner guard allows writes
-  // Use branch-scoped runtime path if on a branch, else root
+async function checkpointPath(directory: string): Promise<string> {
   const branch = await readCurrentGitBranch(directory).catch(() => null);
   const runtimeId = branch ? branchNameToWorkId(branch) : "root";
-  const runtimeDir = path.join(directory, ".ged", "runtime", runtimeId);
-  await mkdir(runtimeDir, { recursive: true });
-  await writeFile(
-    path.join(runtimeDir, "checkpoints.json"),
-    JSON.stringify({
-      classification: "trivial",
-      classificationReason: "test setup",
-      planCheckpoints: {},
-      taskCheckpoints: {},
-    }),
-    "utf8",
-  );
+  return path.join(directory, ".ged", "runtime", runtimeId, "checkpoints.json");
+}
+
+async function writeCheckpoint(directory: string, state: Record<string, unknown>) {
+  const filePath = await checkpointPath(directory);
+  await mkdir(path.dirname(filePath), { recursive: true });
+  await writeFile(filePath, JSON.stringify(state), "utf8");
+}
+
+async function writeRealPlanning(directory: string) {
+  // Write a trivial classification checkpoint so the planner guard allows writes
+  await writeCheckpoint(directory, {
+    classification: "trivial",
+    classificationReason: "test setup",
+    planCheckpoints: {},
+    taskCheckpoints: {},
+  });
 
   const omniDir = path.join(directory, ".ged");
   await writeFile(
@@ -206,6 +209,187 @@ test("tool.execute.before allows non-mutating bash commands before planning", as
     await hook(
       { tool: "bash" },
       { args: { command: "git status --short" } },
+    );
+  });
+});
+
+test("tool.execute.before rejects git commit when classification checkpoint is missing", async () => {
+  await withTempDir(async (dir) => {
+    await ensureOmniDir(dir);
+    await setOmniMode(dir, "on");
+    await writeRealPlanning(dir);
+    await rm(await checkpointPath(dir), { force: true });
+    const hook = await buildHook(dir);
+
+    await assert.rejects(
+      () => hook(
+        { tool: "bash" },
+        { args: { command: "git commit -m test" } },
+      ),
+      /classify the task before committing/,
+    );
+  });
+});
+
+test("tool.execute.before rejects non-trivial git commit without verifier checkpoint", async () => {
+  await withTempDir(async (dir) => {
+    await ensureOmniDir(dir);
+    await setOmniMode(dir, "on");
+    await writeRealPlanning(dir);
+    await writeCheckpoint(dir, {
+      classification: "non-trivial",
+      classificationReason: "test setup",
+      planCheckpoints: {
+        "ged-planner": {
+          agent: "ged-planner",
+          timestamp: "2026-05-04T10:00:00Z",
+          status: "completed",
+        },
+      },
+      taskCheckpoints: {},
+    });
+    const hook = await buildHook(dir);
+
+    await assert.rejects(
+      () => hook(
+        { tool: "bash" },
+        { args: { command: "git commit -m test" } },
+      ),
+      /requires dispatching ged-verifier before committing/,
+    );
+  });
+});
+
+test("tool.execute.before rejects non-trivial git commit without planner checkpoint", async () => {
+  await withTempDir(async (dir) => {
+    await ensureOmniDir(dir);
+    await setOmniMode(dir, "on");
+    await writeRealPlanning(dir);
+    await writeCheckpoint(dir, {
+      classification: "non-trivial",
+      classificationReason: "test setup",
+      planCheckpoints: {},
+      taskCheckpoints: {
+        T01: {
+          "ged-verifier": {
+            agent: "ged-verifier",
+            timestamp: "2026-05-04T11:00:00Z",
+            status: "completed",
+            blocksCommit: false,
+          },
+        },
+      },
+    });
+    const hook = await buildHook(dir);
+
+    await assert.rejects(
+      () => hook(
+        { tool: "bash" },
+        { args: { command: "git commit -m test" } },
+      ),
+      /requires dispatching ged-planner and ged-verifier before committing/,
+    );
+  });
+});
+
+test("tool.execute.before allows git commit with non-trivial planner and verifier checkpoints", async () => {
+  await withTempDir(async (dir) => {
+    await ensureOmniDir(dir);
+    await setOmniMode(dir, "on");
+    await writeRealPlanning(dir);
+    await writeCheckpoint(dir, {
+      classification: "non-trivial",
+      classificationReason: "test setup",
+      planCheckpoints: {
+        "ged-planner": {
+          agent: "ged-planner",
+          timestamp: "2026-05-04T10:00:00Z",
+          status: "completed",
+        },
+      },
+      taskCheckpoints: {
+        T01: {
+          "ged-verifier": {
+            agent: "ged-verifier",
+            timestamp: "2026-05-04T11:00:00Z",
+            status: "completed",
+            blocksCommit: false,
+          },
+        },
+      },
+    });
+    const hook = await buildHook(dir);
+
+    await hook(
+      { tool: "bash" },
+      { args: { command: "git commit -m test" } },
+    );
+  });
+});
+
+test("tool.execute.before rejects git commit --amend without verifier checkpoint", async () => {
+  await withTempDir(async (dir) => {
+    await ensureOmniDir(dir);
+    await setOmniMode(dir, "on");
+    await writeRealPlanning(dir);
+    await writeCheckpoint(dir, {
+      classification: "non-trivial",
+      classificationReason: "test setup",
+      planCheckpoints: {
+        "ged-planner": {
+          agent: "ged-planner",
+          timestamp: "2026-05-04T10:00:00Z",
+          status: "completed",
+        },
+      },
+      taskCheckpoints: {},
+    });
+    const hook = await buildHook(dir);
+
+    await assert.rejects(
+      () => hook(
+        { tool: "bash" },
+        { args: { command: "git commit --amend --no-edit" } },
+      ),
+      /requires dispatching ged-verifier before committing/,
+    );
+  });
+});
+
+test("tool.execute.before rejects git commit when verifier reports blockers", async () => {
+  await withTempDir(async (dir) => {
+    await ensureOmniDir(dir);
+    await setOmniMode(dir, "on");
+    await writeRealPlanning(dir);
+    await writeCheckpoint(dir, {
+      classification: "non-trivial",
+      classificationReason: "test setup",
+      planCheckpoints: {
+        "ged-planner": {
+          agent: "ged-planner",
+          timestamp: "2026-05-04T10:00:00Z",
+          status: "completed",
+        },
+      },
+      taskCheckpoints: {
+        T01: {
+          "ged-verifier": {
+            agent: "ged-verifier",
+            timestamp: "2026-05-04T11:00:00Z",
+            status: "completed",
+            blocksCommit: true,
+          },
+        },
+      },
+    });
+    const hook = await buildHook(dir);
+
+    await assert.rejects(
+      () => hook(
+        { tool: "bash" },
+        { args: { command: "git commit -m test" } },
+      ),
+      /verifier checkpoint reports commit-blocking findings/,
     );
   });
 });

@@ -34,6 +34,7 @@ export function parseCheckpointState(raw: unknown): CheckpointState | null;
 export function validatePlannerCheckpoint(state: CheckpointState | null): CheckpointValidation;
 export function validateVerifierCheckpoint(state: CheckpointState | null, taskId: string): CheckpointValidation;
 export function validateAllVerifierCheckpoints(state: CheckpointState | null): CheckpointValidation;
+export function validateCommitCheckpoints(state: CheckpointState | null): CheckpointValidation;
 export function recordCheckpoint(state: CheckpointState, record: CheckpointRecord, taskId?: string): CheckpointState;
 export function isGitCommitCommand(command: string): boolean;
 export function hasSkipCheckpointMarker(command: string): boolean;

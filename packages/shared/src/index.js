@@ -170,13 +170,53 @@ export function validateAllVerifierCheckpoints(state) {
     return { valid: true, missing: [] };
   }
   const missing = [];
+  let sawVerifier = false;
   for (const [taskId, checkpoints] of Object.entries(
     state.taskCheckpoints,
   )) {
-    if (!checkpoints?.["ged-verifier"]) {
+    const verifier = checkpoints?.["ged-verifier"];
+    if (!verifier) {
       missing.push(`ged-verifier (task ${taskId})`);
+      continue;
+    }
+    sawVerifier = true;
+    if (verifier.blocksCommit) {
+      missing.push(`ged-verifier blocked commit (task ${taskId})`);
     }
   }
+  if (!sawVerifier) {
+    missing.push("ged-verifier");
+  }
+  return { valid: missing.length === 0, missing };
+}
+
+/**
+ * Validate whether it is safe to create or amend a git commit.
+ * Commit readiness is stricter than source-edit readiness: non-trivial work
+ * requires classification, planner review, and at least one verifier review.
+ * @param {CheckpointState | null} state
+ * @returns {CheckpointValidation}
+ */
+export function validateCommitCheckpoints(state) {
+  if (!state) {
+    return {
+      valid: false,
+      missing: ["classification"],
+      warning: "No checkpoint state found — classify the task and write .ged/runtime/checkpoints.json before committing.",
+    };
+  }
+  if (state.classification === "trivial") {
+    return { valid: true, missing: [] };
+  }
+
+  const missing = [];
+  if (!state.planCheckpoints["ged-planner"]) {
+    missing.push("ged-planner");
+  }
+
+  const verifierValidation = validateAllVerifierCheckpoints(state);
+  missing.push(...verifierValidation.missing);
+
   return { valid: missing.length === 0, missing };
 }
 
