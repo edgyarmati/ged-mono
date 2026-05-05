@@ -41,7 +41,7 @@ cp -R "$ROOT_DIR/packages/plugin/src/resources" "$STAGE_DIR/plugin/resources"
 # Install plugin's production dependencies into the bundle
 echo "  Installing plugin dependencies..."
 cd "$ROOT_DIR"
-PLUGIN_VERSION=$(node -e "console.log(require('@opencode-ai/plugin/package.json').version)")
+PLUGIN_VERSION=$(node -e "const fs=require('node:fs'); const path=require('node:path'); const candidates=[path.join(process.cwd(),'node_modules/@opencode-ai/plugin/package.json'), path.join(process.cwd(),'../../node_modules/@opencode-ai/plugin/package.json')]; const pkgPath=candidates.find((p)=>fs.existsSync(p)); if(!pkgPath) throw new Error('Could not locate @opencode-ai/plugin/package.json'); console.log(JSON.parse(fs.readFileSync(pkgPath,'utf8')).version)")
 printf '{"type":"module","dependencies":{"@opencode-ai/plugin":"%s"}}\n' "$PLUGIN_VERSION" > "$STAGE_DIR/package.json"
 cd "$STAGE_DIR"
 npm install --omit=dev --silent 2>&1 | tail -1

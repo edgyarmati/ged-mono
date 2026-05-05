@@ -4,12 +4,12 @@
 # Usage:
 #   irm https://github.com/edgyarmati/ged-mono/releases/latest/download/install.ps1 | iex
 #   # or pin a version:
-#   $env:GEDCODE_VERSION = '0.3.0'; irm ... | iex
+#   $env:GEDCODE_VERSION = '0.4.0'; irm ... | iex
 
 $ErrorActionPreference = 'Stop'
 
 $RepoSlug = 'edgyarmati/ged-mono'
-$Version = if ($env:GEDCODE_VERSION) { $env:GEDCODE_VERSION } else { '0.3.0' }
+$Version = if ($env:GEDCODE_VERSION) { $env:GEDCODE_VERSION } else { '0.4.0' }
 $DataDir = if ($env:GEDCODE_DATA_DIR) {
   $env:GEDCODE_DATA_DIR
 } elseif ($env:LOCALAPPDATA) {

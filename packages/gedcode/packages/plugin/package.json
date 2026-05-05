@@ -1,6 +1,6 @@
 {
   "name": "@gedcode/plugin",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "OpenCode plugin that brings the Omni workflow into OpenCode.",
   "repository": {
     "type": "git",

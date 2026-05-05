@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.4.0 - 2026-05-05
+
 ### Features
 
 - **Hard enforcement of planner and verifier checkpoints** — write/edit to source files is now structurally blocked until ged-planner has been dispatched for non-trivial work, and git commit is blocked until ged-verifier has been dispatched. Guards are implemented in the `tool.execute.before` hook and cannot be bypassed by prompt instructions alone. Escape hatch available via `workflow.allowCheckpointBypass` setting.

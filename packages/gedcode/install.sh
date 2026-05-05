@@ -5,11 +5,11 @@
 # Usage:
 #   curl -fsSL https://github.com/edgyarmati/ged-mono/releases/latest/download/install.sh | bash
 #   # or pin a version:
-#   GEDCODE_VERSION=0.3.0 curl -fsSL ... | bash
+#   GEDCODE_VERSION=0.4.0 curl -fsSL ... | bash
 set -euo pipefail
 
 REPO_SLUG="edgyarmati/ged-mono"
-VERSION="${GEDCODE_VERSION:-0.3.0}"
+VERSION="${GEDCODE_VERSION:-0.4.0}"
 DATA_DIR="${GEDCODE_DATA_DIR:-$HOME/.local/share/gedcode}"
 BIN_DIR="${GEDCODE_BIN_DIR:-$HOME/.local/bin}"
 MINIMUM_NODE_MAJOR=22
