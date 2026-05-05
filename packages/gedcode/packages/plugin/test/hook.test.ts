@@ -496,3 +496,93 @@ test("tool.execute.before is a no-op when Omni mode is off", async () => {
     );
   });
 });
+
+test("tool.execute.before blocks git commit when auto-recorded verifier has blocksCommit: true", async () => {
+  await withTempDir(async (dir) => {
+    await ensureOmniDir(dir);
+    await setOmniMode(dir, "on");
+    await writeRealPlanning(dir);
+    await writeCheckpoint(dir, {
+      classification: "non-trivial",
+      classificationReason: "test setup",
+      planCheckpoints: {
+        "ged-planner": {
+          agent: "ged-planner",
+          timestamp: "2026-05-04T10:00:00Z",
+          status: "completed",
+        },
+      },
+      taskCheckpoints: {
+        auto: {
+          "ged-verifier": {
+            agent: "ged-verifier",
+            timestamp: "2026-05-04T11:00:00Z",
+            status: "completed",
+            blocksCommit: true,
+          },
+        },
+      },
+    });
+    const hook = await buildHook(dir);
+
+    await assert.rejects(
+      () => hook(
+        { tool: "bash" },
+        { args: { command: "git commit -m test" } },
+      ),
+      /verifier checkpoint reports commit-blocking findings/,
+    );
+  });
+});
+
+test("tool.execute.before invalidates verifier checkpoint on source edit", async () => {
+  await withTempDir(async (dir) => {
+    await ensureOmniDir(dir);
+    await setOmniMode(dir, "on");
+    await writeRealPlanning(dir);
+    await writeCheckpoint(dir, {
+      classification: "non-trivial",
+      classificationReason: "test setup",
+      planCheckpoints: {
+        "ged-planner": {
+          agent: "ged-planner",
+          timestamp: "2026-05-04T10:00:00Z",
+          status: "completed",
+        },
+      },
+      taskCheckpoints: {
+        T01: {
+          "ged-verifier": {
+            agent: "ged-verifier",
+            timestamp: "2026-05-04T11:00:00Z",
+            status: "completed",
+            blocksCommit: false,
+            findingCount: 0,
+          },
+        },
+      },
+    });
+    const hook = await buildHook(dir);
+
+    // First, commit should be allowed since verifier is clean
+    await hook(
+      { tool: "bash" },
+      { args: { command: "git commit -m test" } },
+    );
+
+    // Now edit a source file — this should invalidate the verifier
+    await hook(
+      { tool: "write" },
+      { args: { filePath: path.join(dir, "src", "example.ts") } },
+    );
+
+    // Commit should now be blocked
+    await assert.rejects(
+      () => hook(
+        { tool: "bash" },
+        { args: { command: "git commit -m test2" } },
+      ),
+      /verifier checkpoint reports commit-blocking findings/,
+    );
+  });
+});

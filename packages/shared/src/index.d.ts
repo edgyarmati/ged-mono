@@ -36,6 +36,7 @@ export function validateVerifierCheckpoint(state: CheckpointState | null, taskId
 export function validateAllVerifierCheckpoints(state: CheckpointState | null): CheckpointValidation;
 export function validateCommitCheckpoints(state: CheckpointState | null): CheckpointValidation;
 export function recordCheckpoint(state: CheckpointState, record: CheckpointRecord, taskId?: string): CheckpointState;
+export function invalidateVerifierCheckpoints(state: CheckpointState): CheckpointState;
 export function isGitCommitCommand(command: string): boolean;
 export function hasSkipCheckpointMarker(command: string): boolean;
 export function shouldAutoEscalate(currentClassification: TaskClassification, touchedFilePaths: string[]): boolean;

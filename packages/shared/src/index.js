@@ -289,6 +289,33 @@ export function hasSkipCheckpointMarker(command) {
 // ─── Auto-escalation ────────────────────────────────────────────────────
 
 /**
+ * Invalidate all verifier checkpoints by setting blocksCommit: true.
+ * This should be called whenever source files are edited after a verifier run,
+ * forcing re-verification before the next commit.
+ * @param {CheckpointState} state
+ * @returns {CheckpointState}
+ */
+export function invalidateVerifierCheckpoints(state) {
+  const nextTaskCheckpoints = { ...state.taskCheckpoints };
+  for (const [taskId, checkpoints] of Object.entries(nextTaskCheckpoints)) {
+    const verifier = checkpoints?.["ged-verifier"];
+    if (verifier) {
+      nextTaskCheckpoints[taskId] = {
+        ...checkpoints,
+        "ged-verifier": {
+          ...verifier,
+          blocksCommit: true,
+        },
+      };
+    }
+  }
+  return {
+    ...state,
+    taskCheckpoints: nextTaskCheckpoints,
+  };
+}
+
+/**
  * Determine if the work should be auto-escalated to non-trivial based on
  * the number of distinct source file paths being touched.
  * @param {TaskClassification} currentClassification

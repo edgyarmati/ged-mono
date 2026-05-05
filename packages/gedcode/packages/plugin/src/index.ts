@@ -11,6 +11,7 @@ import {
   initCheckpointState,
   isGitCommitCommand,
   hasSkipCheckpointMarker,
+  invalidateVerifierCheckpoints,
   parseCheckpointState,
   recordCheckpoint,
   shouldAutoEscalate,
@@ -431,9 +432,9 @@ function orchestrationPrompt(basePrompt: string): string {
     "## Optional native sub-agent orchestration",
     "Single-writer invariant: the primary gedcode agent is the writer, synthesizer, and decision owner in the active worktree by default. Subagents inject intelligence; they do not own product decisions, commits, PR decisions, or final verification judgments.",
     "When native subagents are enabled, use mandatory intelligence checkpoints for non-trivial change requests: ged-explorer for codebase discovery when relevant context is not already known, ged-planner before finalizing or materially changing SPEC/TASKS/TESTS, and ged-verifier for checks or clean-context review before committing meaningful implementation changes.",
-    "Commits are structurally blocked for non-trivial work until classification, ged-planner, and ged-verifier checkpoints exist. git commit --amend is treated like git commit. Verifier checkpoints with blocksCommit: true must be resolved and adjudicated before committing.",
+    "Commits are structurally blocked for non-trivial work until classification, ged-planner, and ged-verifier checkpoints exist. git commit --amend is treated like git commit. Verifier checkpoints with blocksCommit: true must be resolved and adjudicated before committing. After adjudicating, update .ged/runtime/checkpoints.json to set blocksCommit: false on the verifier checkpoint. Source file edits automatically invalidate verifier checkpoints, so re-run the verifier after fixing code.",
     "If a checkpoint is skipped because the task is trivial, subagents are disabled or unavailable, or the user asked not to delegate, record a concise skip reason in the response and active planning or verification notes. Require subagent reports with evidence, uncertainty, risks, and recommended next inspection.",
-    "Before committing meaningful implementation slices, run planned checks, request clean-context review of the diff/tests, adjudicate accepted vs rejected findings, fix accepted issues, and rerun verification.",
+    "Before committing meaningful implementation slices, run planned checks, request clean-context review of the diff/tests, adjudicate accepted vs rejected findings, fix accepted issues, rerun verification, and update .ged/runtime/checkpoints.json to set blocksCommit: false on the verifier checkpoint.",
     "There is no writer subagent role. Do not delegate source edits or implementation ownership to subagents; the primary gedcode agent remains the only active-worktree writer.",
   ].join("\n\n");
 }
@@ -1986,7 +1987,7 @@ export const GedCodePlugin: Plugin = async ({ directory }, options) => {
             }
             const now = new Date().toISOString();
             const isTaskLevel = subagentType === "ged-explorer" || subagentType === "ged-verifier";
-            state = recordCheckpoint(state, { agent: subagentType, timestamp: now, status: "completed" }, isTaskLevel ? "auto" : undefined);
+            state = recordCheckpoint(state, { agent: subagentType, timestamp: now, status: "completed", blocksCommit: subagentType === "ged-verifier" ? true : undefined }, isTaskLevel ? "auto" : undefined);
             await writeCheckpointStateFile(directory, state);
           } catch {
             // Non-fatal — don't block the subagent dispatch if recording fails
@@ -2069,6 +2070,15 @@ export const GedCodePlugin: Plugin = async ({ directory }, options) => {
             `GedCode planner guard: non-trivial work requires dispatching ged-planner before editing source files. Missing checkpoints: ${plannerValidation.missing.join(", ")}. Dispatch ged-planner via the subagent tool, or reclassify the task as trivial.`,
           );
         }
+
+        // Invalidate verifier checkpoints: any source edit makes prior
+        // verifier reviews stale. Forces re-verification before commit.
+        if (checkpointState) {
+          const invalidated = invalidateVerifierCheckpoints(checkpointState);
+          if (invalidated !== checkpointState) {
+            await writeCheckpointStateFile(directory, invalidated);
+          }
+        }
       }
 
       const settings = await readGedCodeSettings(directory, { homeDir: settingsHomeDir });
@@ -2093,7 +2103,7 @@ export const GedCodePlugin: Plugin = async ({ directory }, options) => {
             }
             if (verifierValidation.missing.some((item) => item.includes("blocked commit"))) {
               throw new Error(
-                `GedCode verifier guard: the verifier checkpoint reports commit-blocking findings. Missing/blocking checkpoints: ${verifierValidation.missing.join(", ")}. Resolve and adjudicate verifier findings before committing.`,
+                `GedCode verifier guard: the verifier checkpoint reports commit-blocking findings. Missing/blocking checkpoints: ${verifierValidation.missing.join(", ")}. Resolve and adjudicate verifier findings, then update .ged/runtime/checkpoints.json to set blocksCommit: false on the verifier checkpoint before committing.`,
               );
             }
             throw new Error(
