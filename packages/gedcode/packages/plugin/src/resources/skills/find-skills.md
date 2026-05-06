@@ -8,8 +8,8 @@ Purpose:
 - Keep project skill memory accurate when the user asks to delete or remove skills.
 
 Workflow:
-1. Identify the task domains and required expertise from the completed `grill-me` clarification.
-2. Inventory available bundled/project skills from `.ged/SKILLS.md` and `gedcode_list_skills`.
+1. Identify the task domains and required expertise from the request and any completed `grill-me` clarification.
+2. Inventory available bundled/project/user skills from `.ged/SKILLS.md` and `gedcode_list_skills`.
 3. Judge coverage explicitly: `sufficient` or `insufficient`, with a one-sentence reason.
 4. If coverage is sufficient, load only the relevant skills for this task.
 5. If coverage is insufficient, search for external skills with targeted keywords and verify source quality before recommending anything.

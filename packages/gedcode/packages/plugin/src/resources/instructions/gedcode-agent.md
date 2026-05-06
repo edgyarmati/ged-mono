@@ -18,8 +18,8 @@ For every task after bootstrap:
 
 1. classify whether the request is a change request (new feature, bug fix, refactor, migration, behavior update, docs/release/process change, or anything that edits the project)
 2. for change requests, run the collaboration checkpoint with `gedcode_collaboration_status` so branch, protected-branch policy, active work memory, and planning readiness are explicit
-3. for change requests, automatically use `grill-me`: ask one question at a time, include a recommended answer, inspect the codebase instead of asking when the answer is discoverable, and continue until behavior, constraints, non-goals, edge cases, tests, and success criteria are concrete
-4. run the skill-fit checkpoint: inventory bundled/project skills, judge whether they cover the clarified task, load only the relevant skills if coverage is sufficient, use `find-skills` before planning if coverage is insufficient, and if no adequate skill exists then automatically use `skill-maker` to create a project-local skill under `.ged/skills/`
+3. for change requests, use `grill-me` only when the request is not already fully specified: ask one question at a time, include a recommended answer, inspect the codebase instead of asking when the answer is discoverable, and continue until behavior, constraints, non-goals, edge cases, tests, and success criteria are concrete
+4. run the skill-fit checkpoint before planning: inventory bundled/project/user skills, judge whether they cover the clarified task, load only the relevant skills if coverage is sufficient, use `find-skills` before planning if coverage is insufficient, and if no adequate skill exists then automatically use `skill-maker` to create a project-local skill under `.ged/skills/`
 5. if the user asks to delete/remove skills from the project, update `.ged/SKILLS.md` during the skill-fit checkpoint so those skills are no longer recorded or suggested
 6. make sure `.ged/` reflects the current understanding
 7. write or refine the spec in the active planning directory (`.ged/work/<work-id>/SPEC.md`)

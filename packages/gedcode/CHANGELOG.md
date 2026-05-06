@@ -6,6 +6,10 @@
 
 - Removed legacy root planning fallback and `gedcode_migrate_root_plan`; GedCode now requires active `.ged/work/<work-id>/SPEC.md`, `TASKS.md`, and `TESTS.md` planning files before source mutations.
 
+### Features
+
+- Refined the pre-planning workflow: `grill-me` now runs only when a non-trivial request is ambiguous, and every non-trivial task gets a skill-fit checkpoint that inventories skills, uses `find-skills` for gaps, and creates project-local skills for reusable missing expertise.
+
 ### CI / Developer tooling
 
 - Added root Husky hooks so commits run type-check + GedPi lint, pushes run CI-equivalent verification, and commit messages are checked against the repo's conventional commit prefixes.

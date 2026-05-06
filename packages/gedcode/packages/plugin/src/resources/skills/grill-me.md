@@ -1,11 +1,11 @@
 # grill-me
 
-Use automatically before planning or implementing a user-requested change, new feature, bug fix, refactor, migration, or behavior update.
+Use before planning or implementing a user-requested change, new feature, bug fix, refactor, migration, or behavior update when the request is not already fully specified.
 
-Interview the user relentlessly until you and the user share the same understanding of the request.
+Clarify only the missing details until you and the user share the same understanding of the request. If the request is already clear, skip grilling and proceed to the skill-fit checkpoint.
 
 Rules:
-- Ask one question at a time.
+- Ask one question at a time in chat.
 - For each question, provide your recommended answer or default assumption.
 - If a question can be answered by exploring the codebase, explore the codebase instead of asking.
 - Walk down the decision tree in dependency order: goal, users, current behavior, desired behavior, constraints, edge cases, non-goals, tests, rollout, and success criteria.
