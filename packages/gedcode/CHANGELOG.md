@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### CI / Developer tooling
+
+- Added root Husky hooks so commits run type-check + GedPi lint, pushes run CI-equivalent verification, and commit messages are checked against the repo's conventional commit prefixes.
+
 ## 0.4.0 - 2026-05-05
 
 ### Features

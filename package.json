@@ -21,12 +21,16 @@
     "build": "npm run build --workspaces --if-present",
     "check": "npm run check --workspaces --if-present && npm run check --prefix packages/gedpi",
     "test": "npm run test --workspaces --if-present && npm run test --prefix packages/gedpi",
-    "verify": "npm run check && npm test"
+    "verify": "npm --prefix packages/gedpi run verify && npm -w packages/gedcode run check && npm -w packages/gedcode test",
+    "prepare": "husky"
   },
   "engines": {
     "node": ">=22"
   },
   "overrides": {
     "@mariozechner/pi-tui": "0.72.1"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7"
   }
 }
