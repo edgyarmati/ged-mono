@@ -25,7 +25,6 @@ import {
   formatWorkflowSettingsStatus,
   formatAgentsSettingsStatus,
   importStandards,
-  migrateRootPlanToActiveWork,
   planningArtifactsReady,
   planningArtifactsReadyAt,
   planningGuardMessage,
@@ -533,7 +532,6 @@ test("activePlanningArtifactPaths selects .ged/work for branch-backed work", asy
 
     const paths = await activePlanningArtifactPaths(dir);
 
-    assert.equal(paths.source, "work");
     assert.equal(paths.workId, "feature-collab-memory");
     assert.equal(paths.baseDir, path.join(dir, ".ged", "work", "feature-collab-memory"));
     assert.equal(paths.specPath, path.join(paths.baseDir, "SPEC.md"));
@@ -542,13 +540,12 @@ test("activePlanningArtifactPaths selects .ged/work for branch-backed work", asy
   });
 });
 
-test("activePlanningArtifactPaths falls back to root planning when no branch is available", async () => {
+test("activePlanningArtifactPaths uses .ged/work/root when no branch is available", async () => {
   await withTempDir(async (dir) => {
     const paths = await activePlanningArtifactPaths(dir);
 
-    assert.equal(paths.source, "root");
-    assert.equal(paths.workId, null);
-    assert.equal(paths.baseDir, path.join(dir, ".ged"));
+    assert.equal(paths.workId, "root");
+    assert.equal(paths.baseDir, path.join(dir, ".ged", "work", "root"));
   });
 });
 
@@ -631,105 +628,43 @@ test("importStandards preserves embedded fences without closing the wrapper fenc
   });
 });
 
-test("planningArtifactsReady rejects placeholders and requires SPEC, TASKS, and TESTS content", async () => {
+test("planningArtifactsReady requires active work SPEC, TASKS, and TESTS content", async () => {
   await withTempDir(async (dir) => {
     await ensureOmniDir(dir);
 
     assert.equal(await planningArtifactsReady(dir), false);
 
-    await writeFile(
-      path.join(dir, ".ged", "SPEC.md"),
-      `${OMNI_FILES["SPEC.md"]}\n## Goal\nReal content\n`,
-      "utf8",
-    );
-    await writeFile(
-      path.join(dir, ".ged", "TASKS.md"),
-      `${OMNI_FILES["TASKS.md"]}\n## Slice 1\n- [ ] Do work\n`,
-      "utf8",
-    );
-
+    await writeRealPlanningFiles(path.join(dir, ".ged"));
     assert.equal(await planningArtifactsReady(dir), false);
 
-    await writeFile(
-      path.join(dir, ".ged", "TESTS.md"),
-      `${OMNI_FILES["TESTS.md"]}\n## Checks\n- [ ] Run the smoke test\n`,
-      "utf8",
-    );
-
+    const activePaths = await activePlanningArtifactPaths(dir);
+    await writeRealPlanningFiles(activePaths.baseDir);
     assert.equal(await planningArtifactsReady(dir), true);
   });
 });
 
-test("resolvePlanningArtifactReadiness prefers active work planning when ready", async () => {
+test("resolvePlanningArtifactReadiness only accepts active work planning", async () => {
   await withTempDir(async (dir) => {
     await mkdir(path.join(dir, ".git"), { recursive: true });
     await writeFile(path.join(dir, ".git", "HEAD"), "ref: refs/heads/feature/collab-memory\n", "utf8");
+    await ensureOmniDir(dir);
+    await writeRealPlanningFiles(path.join(dir, ".ged"));
+
+    let readiness = await resolvePlanningArtifactReadiness(dir);
+    assert.equal(readiness.ready, false);
+
     const activePaths = await activePlanningArtifactPaths(dir);
     await writeRealPlanningFiles(activePaths.baseDir);
-
-    const readiness = await resolvePlanningArtifactReadiness(dir);
+    readiness = await resolvePlanningArtifactReadiness(dir);
 
     assert.equal(await planningArtifactsReadyAt(activePaths), true);
     assert.equal(readiness.ready, true);
-    assert.equal(readiness.readyPaths?.source, "work");
-    assert.equal(readiness.usedRootFallback, false);
+    assert.equal(readiness.readyPaths?.baseDir, activePaths.baseDir);
     assert.equal(await planningArtifactsReady(dir), true);
   });
 });
 
-test("resolvePlanningArtifactReadiness uses root fallback when active work planning is missing", async () => {
-  await withTempDir(async (dir) => {
-    await mkdir(path.join(dir, ".git"), { recursive: true });
-    await writeFile(path.join(dir, ".git", "HEAD"), "ref: refs/heads/feature/collab-memory\n", "utf8");
-    await ensureOmniDir(dir);
-    await writeRealPlanningFiles(path.join(dir, ".ged"));
-
-    const readiness = await resolvePlanningArtifactReadiness(dir);
-
-    assert.equal(readiness.ready, true);
-    assert.equal(readiness.readyPaths?.source, "root");
-    assert.equal(readiness.usedRootFallback, true);
-  });
-});
-
-test("migrateRootPlanToActiveWork copies root planning into active work", async () => {
-  await withTempDir(async (dir) => {
-    await mkdir(path.join(dir, ".git"), { recursive: true });
-    await writeFile(path.join(dir, ".git", "HEAD"), "ref: refs/heads/feat/migrate\n", "utf8");
-    await ensureOmniDir(dir);
-    await writeRealPlanningFiles(path.join(dir, ".ged"));
-
-    const result = await migrateRootPlanToActiveWork(dir);
-
-    assert.deepEqual(result.copied.sort(), [
-      ".ged/work/feat-migrate/SPEC.md",
-      ".ged/work/feat-migrate/TASKS.md",
-      ".ged/work/feat-migrate/TESTS.md",
-    ].sort());
-    assert.match(await readFile(path.join(result.activePaths.baseDir, "SPEC.md"), "utf8"), /Spec content/);
-    assert.match(await readFile(result.notesPath, "utf8"), /Migrated root planning files/);
-  });
-});
-
-test("migrateRootPlanToActiveWork rejects placeholders and overwrite conflicts", async () => {
-  await withTempDir(async (dir) => {
-    await mkdir(path.join(dir, ".git"), { recursive: true });
-    await writeFile(path.join(dir, ".git", "HEAD"), "ref: refs/heads/feat/migrate\n", "utf8");
-    await ensureOmniDir(dir);
-
-    await assert.rejects(() => migrateRootPlanToActiveWork(dir), /nothing to migrate/);
-
-    await writeRealPlanningFiles(path.join(dir, ".ged"));
-    const activePaths = await activePlanningArtifactPaths(dir);
-    await mkdir(activePaths.baseDir, { recursive: true });
-    await writeFile(activePaths.specPath, "existing\n", "utf8");
-
-    await assert.rejects(() => migrateRootPlanToActiveWork(dir), /refusing to overwrite/);
-    await assert.doesNotReject(() => migrateRootPlanToActiveWork(dir, { overwrite: true }));
-  });
-});
-
-test("planningGuardMessage names active work planning with root fallback", async () => {
+test("planningGuardMessage names active work planning only", async () => {
   await withTempDir(async (dir) => {
     await mkdir(path.join(dir, ".git"), { recursive: true });
     await writeFile(path.join(dir, ".git", "HEAD"), "ref: refs/heads/feature/collab-memory\n", "utf8");
@@ -738,7 +673,7 @@ test("planningGuardMessage names active work planning with root fallback", async
     const message = planningGuardMessage(readiness);
 
     assert.match(message, /\.ged\/work\/feature-collab-memory/);
-    assert.match(message, /Legacy root \.ged\/SPEC\.md/);
+    assert.doesNotMatch(message, /Legacy root|fallback/i);
   });
 });
 
@@ -758,7 +693,7 @@ test("buildCollaborationCheckpoint reports branch, policy, and active planning s
   });
 });
 
-test("buildCollaborationCheckpoint reports protected branch blocks and root fallback", async () => {
+test("buildCollaborationCheckpoint reports protected branch blocks without root fallback", async () => {
   await withTempDir(async (dir) => {
     await mkdir(path.join(dir, ".git"), { recursive: true });
     await writeFile(path.join(dir, ".git", "HEAD"), "ref: refs/heads/main\n", "utf8");
@@ -769,8 +704,8 @@ test("buildCollaborationCheckpoint reports protected branch blocks and root fall
 
     assert.match(checkpoint, /Protected Branch: yes/);
     assert.match(checkpoint, /Protected Branch Policy: blocked for change implementation/);
-    assert.match(checkpoint, /Planning Status: ready via legacy root fallback/);
-    assert.match(checkpoint, /Next Step: Create or switch to a feature branch/);
+    assert.match(checkpoint, /Planning Status: not ready \(\.ged\/work\/main\)/);
+    assert.match(checkpoint, /Next Step: Write real SPEC\.md, TASKS\.md, and TESTS\.md in \.ged\/work\/main/);
   });
 });
 

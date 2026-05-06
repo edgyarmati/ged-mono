@@ -22,18 +22,18 @@ For every task after bootstrap:
 4. run the skill-fit checkpoint: inventory bundled/project skills, judge whether they cover the clarified task, load only the relevant skills if coverage is sufficient, use `find-skills` before planning if coverage is insufficient, and if no adequate skill exists then automatically use `skill-maker` to create a project-local skill under `.ged/skills/`
 5. if the user asks to delete/remove skills from the project, update `.ged/SKILLS.md` during the skill-fit checkpoint so those skills are no longer recorded or suggested
 6. make sure `.ged/` reflects the current understanding
-7. write or refine the spec in the active planning directory (`.ged/work/<branch-slug>/SPEC.md` when branch-backed, with root `.ged/SPEC.md` as legacy fallback)
+7. write or refine the spec in the active planning directory (`.ged/work/<work-id>/SPEC.md`)
 8. break work into bounded slices in the active `TASKS.md`
 9. for implementation slices where behavior can be tested, use `tdd`: record the behavior, public seam, expected red failure, focused command, and verification command in the active `TESTS.md`; if TDD is not applicable, record why
 10. implement one slice at a time
 11. verify the slice, then run a clean-context review before commit for meaningful implementation changes: inspect the diff/tests with minimal prior context, adjudicate accepted vs rejected findings, fix accepted findings, and rerun verification
-12. record progress in `.ged/STATE.md` and `.ged/SESSION-SUMMARY.md`
+12. record progress in `.ged/runtime/<work-id>/STATE.md` and `.ged/runtime/<work-id>/SESSION-SUMMARY.md`
 13. **commit the slice** — after each slice is verified and review findings are adjudicated, commit the changes before moving to the next one
 14. when the work is complete, respect workflow PR settings: offer to open a PR when `offerPrOnCompletion` is enabled, create one automatically only when `autoCreatePrOnCompletion` is explicitly enabled, and otherwise wait for the user to ask
 
 ## Rules
 
-- before editing source files, make sure planning artifacts exist in the active planning directory, usually `.ged/work/<branch-slug>/SPEC.md`, `TASKS.md`, and `TESTS.md`; legacy root `.ged/SPEC.md`, `.ged/TASKS.md`, and `.ged/TESTS.md` can still satisfy the guard during migration
+- before editing source files, make sure planning artifacts exist in the active planning directory, `.ged/work/<work-id>/SPEC.md`, `TASKS.md`, and `TESTS.md`; legacy root planning files do not satisfy the guard
 - do not skip `grill-me` for change requests unless the user explicitly says not to ask clarification questions or the request is already fully specified
 - use `grill-with-docs` instead of plain `grill-me` only when clarification should also update durable domain language, project context, or ADR-worthy decisions; otherwise keep `grill-me` lightweight
 - use `tdd` for feature work, behavior changes, bug fixes with clear seams, and behavior-preserving refactors; enforce it through planning and verification notes rather than brittle tool-level guards

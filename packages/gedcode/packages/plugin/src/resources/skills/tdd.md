@@ -14,7 +14,7 @@ Do not write all tests first and then all implementation. Do not test private im
 
 ## Planning expectations
 
-Record the TDD plan in the active planning directory's `TESTS.md` (`.ged/work/<branch-slug>/TESTS.md` for branch-backed work, with root `.ged/TESTS.md` only as legacy fallback):
+Record the TDD plan in the active planning directory's `TESTS.md` (`.ged/work/<work-id>/TESTS.md`):
 
 - behavior under test;
 - public interface or seam exercised by the test;

@@ -1,7 +1,7 @@
 /**
  * Shared checkpoint state types and validation for GedCode and GedPi.
  *
- * Both packages use the same .ged/runtime/checkpoints.json schema
+ * Both packages use the same .ged/runtime/<work-id>/checkpoints.json schema
  * to ensure the .ged/ memory format stays interchangeable.
  */
 
@@ -111,7 +111,7 @@ export function validatePlannerCheckpoint(state) {
     return {
       valid: false,
       missing: ["classification"],
-      warning: "No checkpoint state found — classify the task and write .ged/runtime/checkpoints.json before editing source files.",
+      warning: "No checkpoint state found — classify the task and write .ged/runtime/<work-id>/checkpoints.json before editing source files.",
     };
   }
   if (state.classification === "trivial") {
@@ -137,7 +137,7 @@ export function validateVerifierCheckpoint(state, taskId) {
     return {
       valid: false,
       missing: ["classification"],
-      warning: "No checkpoint state found — classify the task and write .ged/runtime/checkpoints.json before committing.",
+      warning: "No checkpoint state found — classify the task and write .ged/runtime/<work-id>/checkpoints.json before committing.",
     };
   }
   if (state.classification === "trivial") {
@@ -163,7 +163,7 @@ export function validateAllVerifierCheckpoints(state) {
     return {
       valid: false,
       missing: ["classification"],
-      warning: "No checkpoint state found — classify the task and write .ged/runtime/checkpoints.json before committing.",
+      warning: "No checkpoint state found — classify the task and write .ged/runtime/<work-id>/checkpoints.json before committing.",
     };
   }
   if (state.classification === "trivial") {
@@ -202,7 +202,7 @@ export function validateCommitCheckpoints(state) {
     return {
       valid: false,
       missing: ["classification"],
-      warning: "No checkpoint state found — classify the task and write .ged/runtime/checkpoints.json before committing.",
+      warning: "No checkpoint state found — classify the task and write .ged/runtime/<work-id>/checkpoints.json before committing.",
     };
   }
   if (state.classification === "trivial") {

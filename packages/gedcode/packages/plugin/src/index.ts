@@ -64,14 +64,12 @@ export type PlanningArtifactPaths = {
   tasksPath: string;
   testsPath: string;
   workId: string | null;
-  source: "work" | "root";
 };
 
 export type PlanningArtifactReadiness = {
   ready: boolean;
   activePaths: PlanningArtifactPaths;
   readyPaths: PlanningArtifactPaths | null;
-  usedRootFallback: boolean;
 };
 
 export type StartWorkResult = {
@@ -79,13 +77,6 @@ export type StartWorkResult = {
   branch: string;
   dirtyStatus: string;
   activePaths: PlanningArtifactPaths | null;
-  message: string;
-};
-
-export type MigrateRootPlanResult = {
-  copied: string[];
-  activePaths: PlanningArtifactPaths;
-  notesPath: string;
   message: string;
 };
 
@@ -432,9 +423,9 @@ function orchestrationPrompt(basePrompt: string): string {
     "## Optional native sub-agent orchestration",
     "Single-writer invariant: the primary gedcode agent is the writer, synthesizer, and decision owner in the active worktree by default. Subagents inject intelligence; they do not own product decisions, commits, PR decisions, or final verification judgments.",
     "When native subagents are enabled, use mandatory intelligence checkpoints for non-trivial change requests: ged-explorer for codebase discovery when relevant context is not already known, ged-planner before finalizing or materially changing SPEC/TASKS/TESTS, and ged-verifier for checks or clean-context review before committing meaningful implementation changes.",
-    "Commits are structurally blocked for non-trivial work until classification, ged-planner, and ged-verifier checkpoints exist. git commit --amend is treated like git commit. Verifier checkpoints with blocksCommit: true must be resolved and adjudicated before committing. After adjudicating, update .ged/runtime/checkpoints.json to set blocksCommit: false on the verifier checkpoint. Source file edits automatically invalidate verifier checkpoints, so re-run the verifier after fixing code.",
+    "Commits are structurally blocked for non-trivial work until classification, ged-planner, and ged-verifier checkpoints exist. git commit --amend is treated like git commit. Verifier checkpoints with blocksCommit: true must be resolved and adjudicated before committing. After adjudicating, update .ged/runtime/<work-id>/checkpoints.json to set blocksCommit: false on the verifier checkpoint. Source file edits automatically invalidate verifier checkpoints, so re-run the verifier after fixing code.",
     "If a checkpoint is skipped because the task is trivial, subagents are disabled or unavailable, or the user asked not to delegate, record a concise skip reason in the response and active planning or verification notes. Require subagent reports with evidence, uncertainty, risks, and recommended next inspection.",
-    "Before committing meaningful implementation slices, run planned checks, request clean-context review of the diff/tests, adjudicate accepted vs rejected findings, fix accepted issues, rerun verification, and update .ged/runtime/checkpoints.json to set blocksCommit: false on the verifier checkpoint.",
+    "Before committing meaningful implementation slices, run planned checks, request clean-context review of the diff/tests, adjudicate accepted vs rejected findings, fix accepted issues, rerun verification, and update .ged/runtime/<work-id>/checkpoints.json to set blocksCommit: false on the verifier checkpoint.",
     "There is no writer subagent role. Do not delegate source edits or implementation ownership to subagents; the primary gedcode agent remains the only active-worktree writer.",
   ].join("\n\n");
 }
@@ -714,24 +705,20 @@ export function validateWorkBranchName(branch: string): string {
   return trimmed;
 }
 
-function planningArtifactPaths(baseDir: string, workId: string | null, source: "work" | "root"): PlanningArtifactPaths {
+function planningArtifactPaths(baseDir: string, workId: string): PlanningArtifactPaths {
   return {
     baseDir,
     specPath: path.join(baseDir, "SPEC.md"),
     tasksPath: path.join(baseDir, "TASKS.md"),
     testsPath: path.join(baseDir, "TESTS.md"),
     workId,
-    source,
   };
 }
 
 export async function activePlanningArtifactPaths(directory: string): Promise<PlanningArtifactPaths> {
   const branch = await readCurrentGitBranch(directory);
-  if (!branch) {
-    return planningArtifactPaths(path.join(directory, ".ged"), null, "root");
-  }
-  const workId = branchNameToWorkId(branch);
-  return planningArtifactPaths(path.join(directory, ".ged", "work", workId), workId, "work");
+  const workId = branch ? branchNameToWorkId(branch) : "root";
+  return planningArtifactPaths(path.join(directory, ".ged", "work", workId), workId);
 }
 
 export async function activeRuntimePaths(directory: string): Promise<RuntimePaths> {
@@ -955,69 +942,6 @@ async function pathExists(filePath: string): Promise<boolean> {
   } catch {
     return false;
   }
-}
-
-export async function migrateRootPlanToActiveWork(
-  directory: string,
-  options: { overwrite?: boolean } = {},
-): Promise<MigrateRootPlanResult> {
-  const activePaths = await activePlanningArtifactPaths(directory);
-  if (activePaths.source !== "work") {
-    throw new Error("GedCode: root planning migration requires a branch-backed active work directory.");
-  }
-  const rootPaths = rootPlanningArtifactPaths(directory);
-  if (!(await planningArtifactsReadyAt(rootPaths))) {
-    throw new Error("GedCode: root planning artifacts are missing or still placeholders; nothing to migrate.");
-  }
-  const targets = [activePaths.specPath, activePaths.tasksPath, activePaths.testsPath];
-  const existingTargets = [];
-  for (const target of targets) {
-    if (await pathExists(target)) existingTargets.push(relativeDisplayPath(directory, target));
-  }
-  if (existingTargets.length > 0 && !options.overwrite) {
-    throw new Error(
-      [
-        "GedCode: active work planning files already exist; refusing to overwrite.",
-        ...existingTargets.map((target) => `- ${target}`),
-        "Rerun with overwrite: true to replace them.",
-      ].join("\n"),
-    );
-  }
-
-  await mkdir(activePaths.baseDir, { recursive: true });
-  const copies: Array<[string, string]> = [
-    [rootPaths.specPath, activePaths.specPath],
-    [rootPaths.tasksPath, activePaths.tasksPath],
-    [rootPaths.testsPath, activePaths.testsPath],
-  ];
-  const copied: string[] = [];
-  for (const [source, target] of copies) {
-    await writeFileAtomic(target, await readFile(source, "utf8"));
-    copied.push(relativeDisplayPath(directory, target));
-  }
-  const notesPath = path.join(activePaths.baseDir, "NOTES.md");
-  const note = [
-    "# Notes",
-    "",
-    `- Migrated root planning files from .ged/ into ${relativeDisplayPath(directory, activePaths.baseDir)} on ${new Date().toISOString()}.`,
-    "- Root planning files were left intact for compatibility.",
-    "",
-  ].join("\n");
-  await writeFileAtomic(notesPath, note);
-  return {
-    copied,
-    activePaths,
-    notesPath,
-    message: [
-      `Migrated root planning into ${relativeDisplayPath(directory, activePaths.baseDir)}.`,
-      ...copied.map((filePath) => `- ${filePath}`),
-      `Notes: ${relativeDisplayPath(directory, notesPath)}`,
-    ].join("\n"),
-  };
-}
-
-function rootPlanningArtifactPaths(directory: string): PlanningArtifactPaths {
-  return planningArtifactPaths(path.join(directory, ".ged"), null, "root");
 }
 
 function tempPathFor(filePath: string): string {
@@ -1791,17 +1715,10 @@ export async function planningArtifactsReadyAt(paths: PlanningArtifactPaths): Pr
 export async function resolvePlanningArtifactReadiness(directory: string): Promise<PlanningArtifactReadiness> {
   const activePaths = await activePlanningArtifactPaths(directory);
   if (await planningArtifactsReadyAt(activePaths)) {
-    return { ready: true, activePaths, readyPaths: activePaths, usedRootFallback: false };
+    return { ready: true, activePaths, readyPaths: activePaths };
   }
 
-  if (activePaths.source === "work") {
-    const rootPaths = rootPlanningArtifactPaths(directory);
-    if (await planningArtifactsReadyAt(rootPaths)) {
-      return { ready: true, activePaths, readyPaths: rootPaths, usedRootFallback: true };
-    }
-  }
-
-  return { ready: false, activePaths, readyPaths: null, usedRootFallback: false };
+  return { ready: false, activePaths, readyPaths: null };
 }
 
 export async function planningArtifactsReady(directory: string): Promise<boolean> {
@@ -1809,10 +1726,7 @@ export async function planningArtifactsReady(directory: string): Promise<boolean
 }
 
 export function planningGuardMessage(readiness: PlanningArtifactReadiness): string {
-  if (readiness.activePaths.source === "work") {
-    return `GedCode guard: before editing source files or running mutating shell commands, write real planning content into ${readiness.activePaths.baseDir}/SPEC.md, TASKS.md, and TESTS.md. Legacy root .ged/SPEC.md, .ged/TASKS.md, and .ged/TESTS.md can still satisfy this guard during migration.`;
-  }
-  return "GedCode guard: before editing source files or running mutating shell commands, write real planning content into .ged/SPEC.md, .ged/TASKS.md, and .ged/TESTS.md (placeholder bootstrap files are not enough).";
+  return `GedCode guard: before editing source files or running mutating shell commands, write real planning content into ${relativeDisplayPath(process.cwd(), readiness.activePaths.baseDir)}/SPEC.md, TASKS.md, and TESTS.md (placeholder bootstrap files are not enough).`;
 }
 
 function relativeDisplayPath(directory: string, filePath: string): string {
@@ -1834,9 +1748,7 @@ export async function buildCollaborationCheckpoint(directory: string): Promise<s
         ? "allowed by settings"
         : "not protected";
   const planningStatus = readiness.ready
-    ? readiness.usedRootFallback
-      ? `ready via legacy root fallback (${relativeDisplayPath(directory, readiness.readyPaths?.baseDir ?? readiness.activePaths.baseDir)})`
-      : `ready (${relativeDisplayPath(directory, readiness.readyPaths?.baseDir ?? readiness.activePaths.baseDir)})`
+    ? `ready (${relativeDisplayPath(directory, readiness.readyPaths?.baseDir ?? readiness.activePaths.baseDir)})`
     : `not ready (${relativeDisplayPath(directory, readiness.activePaths.baseDir)})`;
   const nextStep = readiness.ready
     ? protectedBranchStatus === "blocked for change implementation"
@@ -1853,7 +1765,6 @@ export async function buildCollaborationCheckpoint(directory: string): Promise<s
     `Active Work ID: ${readiness.activePaths.workId ?? "root"}`,
     `Active Planning Directory: ${relativeDisplayPath(directory, readiness.activePaths.baseDir)}`,
     `Planning Status: ${planningStatus}`,
-    `Root Fallback Used: ${readiness.usedRootFallback ? "yes" : "no"}`,
     `Next Step: ${nextStep}`,
   ].join("\n");
 }
@@ -2063,7 +1974,7 @@ export const GedCodePlugin: Plugin = async ({ directory }, options) => {
         if (!plannerValidation.valid) {
           if (plannerValidation.missing.includes("classification")) {
             throw new Error(
-              "GedCode planner guard: you must classify the task before editing source files. Write your classification to .ged/runtime/checkpoints.json first.",
+              "GedCode planner guard: you must classify the task before editing source files. Write your classification to .ged/runtime/<work-id>/checkpoints.json first.",
             );
           }
           throw new Error(
@@ -2093,7 +2004,7 @@ export const GedCodePlugin: Plugin = async ({ directory }, options) => {
           if (!verifierValidation.valid) {
             if (verifierValidation.missing.includes("classification")) {
               throw new Error(
-                "GedCode verifier guard: you must classify the task before committing. Write your classification to .ged/runtime/checkpoints.json first.",
+                "GedCode verifier guard: you must classify the task before committing. Write your classification to .ged/runtime/<work-id>/checkpoints.json first.",
               );
             }
             if (verifierValidation.missing.includes("ged-planner")) {
@@ -2103,7 +2014,7 @@ export const GedCodePlugin: Plugin = async ({ directory }, options) => {
             }
             if (verifierValidation.missing.some((item) => item.includes("blocked commit"))) {
               throw new Error(
-                `GedCode verifier guard: the verifier checkpoint reports commit-blocking findings. Missing/blocking checkpoints: ${verifierValidation.missing.join(", ")}. Resolve and adjudicate verifier findings, then update .ged/runtime/checkpoints.json to set blocksCommit: false on the verifier checkpoint before committing.`,
+                `GedCode verifier guard: the verifier checkpoint reports commit-blocking findings. Missing/blocking checkpoints: ${verifierValidation.missing.join(", ")}. Resolve and adjudicate verifier findings, then update .ged/runtime/<work-id>/checkpoints.json to set blocksCommit: false on the verifier checkpoint before committing.`,
               );
             }
             throw new Error(
@@ -2284,17 +2195,6 @@ export const GedCodePlugin: Plugin = async ({ directory }, options) => {
         },
       }),
 
-      gedcode_migrate_root_plan: tool({
-        description:
-          "Copy non-placeholder root .ged planning files into the active branch-scoped .ged/work directory.",
-        args: {
-          overwrite: tool.schema.boolean().optional().describe("Overwrite existing active work planning files."),
-        },
-        async execute(args) {
-          const result = await migrateRootPlanToActiveWork(directory, { overwrite: args.overwrite });
-          return result.message;
-        },
-      }),
 
       gedcode_update_state: tool({
         description: "Update the active branch-scoped .ged/runtime STATE.md with the current phase, active task, blockers, and next step.",

@@ -52,7 +52,10 @@ async function writeRealPlanning(directory: string) {
     taskCheckpoints: {},
   });
 
-  const omniDir = path.join(directory, ".ged");
+  const branch = await readCurrentGitBranch(directory).catch(() => null);
+  const workId = branch ? branchNameToWorkId(branch) : "root";
+  const omniDir = path.join(directory, ".ged", "work", workId);
+  await mkdir(omniDir, { recursive: true });
   await writeFile(
     path.join(omniDir, "SPEC.md"),
     [

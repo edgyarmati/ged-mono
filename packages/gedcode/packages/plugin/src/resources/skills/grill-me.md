@@ -9,7 +9,7 @@ Rules:
 - For each question, provide your recommended answer or default assumption.
 - If a question can be answered by exploring the codebase, explore the codebase instead of asking.
 - Walk down the decision tree in dependency order: goal, users, current behavior, desired behavior, constraints, edge cases, non-goals, tests, rollout, and success criteria.
-- Stop grilling only when the requested behavior, constraints, and success criteria are concrete enough to update `.ged/SPEC.md`, `.ged/TASKS.md`, and `.ged/TESTS.md` safely.
+- Stop grilling only when the requested behavior, constraints, and success criteria are concrete enough to update `.ged/work/<work-id>/SPEC.md`, `.ged/work/<work-id>/TASKS.md`, and `.ged/work/<work-id>/TESTS.md` safely.
 - Do not implement during grilling.
 
 Output style:

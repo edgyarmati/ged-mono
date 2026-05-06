@@ -26,9 +26,9 @@ Contributor bootstrap (one-time): `./scripts/setup`. Release artifacts: `bash ./
 
 ## Workflow rules (these mirror `packages/plugin/src/resources/instructions/gedcode-agent.md` — follow them when working on this repo)
 
-- **Plan before editing source.** Before editing any source file, `.ged/SPEC.md`, `.ged/TASKS.md`, and `.ged/TESTS.md` must contain real planning content (the plugin's write/edit guard enforces this at runtime; placeholder bootstrap content is rejected).
+- **Plan before editing source.** Before editing any source file, `.ged/work/<work-id>/SPEC.md`, `.ged/work/<work-id>/TASKS.md`, and `.ged/work/<work-id>/TESTS.md` must contain real planning content (the plugin's write/edit guard enforces this at runtime; placeholder bootstrap content is rejected).
 - **Update `.ged/` first**, not transient chat context. Reflect the current understanding in `.ged/` before implementing.
-- **Bounded slices.** Implement one slice from `.ged/TASKS.md` at a time; verify; record progress in `.ged/STATE.md` and `.ged/SESSION-SUMMARY.md`; commit; then move on.
+- **Bounded slices.** Implement one slice from `.ged/work/<work-id>/TASKS.md` at a time; verify; record progress in `.ged/runtime/<work-id>/STATE.md` and `.ged/runtime/<work-id>/SESSION-SUMMARY.md`; commit; then move on.
 - **Conventional commits — always.** Every commit message must start with one of: `feat:`, `fix:`, `refactor:`, `docs:`, `test:`, `chore:`, `ci:`, `build:`, `perf:`. The summary must be specific, not generic. A PreToolUse hook in `.claude/settings.json` rejects non-conforming `git commit -m` calls.
 - **Verify before committing.** Run `npm run check && npm test` (or invoke the `/verify` skill) and ensure both pass before any `git commit`.
 - **Use the existing commands** rather than improvising:

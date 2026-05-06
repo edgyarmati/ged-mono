@@ -89,9 +89,9 @@ Current features:
 - optional native subagents follow a single-writer model: `ged-explorer`, `ged-planner`, and `ged-verifier` are read-only/advisory intelligence helpers; there is no writer subagent role
 
 Planning artifacts currently required before source editing:
-- `.ged/SPEC.md`
-- `.ged/TASKS.md`
-- `.ged/TESTS.md`
+- `.ged/work/<work-id>/SPEC.md`
+- `.ged/work/<work-id>/TASKS.md`
+- `.ged/work/<work-id>/TESTS.md`
 
 ### Bundled resources
 
@@ -176,7 +176,7 @@ Verified in a real OpenCode runtime:
 These are the next most valuable slices:
 
 1. **Workflow enforcement hardening**
-   - current enforcement blocks `write`/`edit` until `.ged/SPEC.md`, `.ged/TASKS.md`, and `.ged/TESTS.md` contain non-placeholder planning content
+   - current enforcement blocks `write`/`edit` until `.ged/work/<work-id>/SPEC.md`, `.ged/work/<work-id>/TASKS.md`, and `.ged/work/<work-id>/TESTS.md` contain non-placeholder planning content
    - may need stronger or more precise guarding once more real OpenCode sessions are observed
 
 2. **Collaborative memory / branch workflow**

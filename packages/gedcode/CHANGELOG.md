@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Breaking Changes
+
+- Removed legacy root planning fallback and `gedcode_migrate_root_plan`; GedCode now requires active `.ged/work/<work-id>/SPEC.md`, `TASKS.md`, and `TESTS.md` planning files before source mutations.
+
 ### CI / Developer tooling
 
 - Added root Husky hooks so commits run type-check + GedPi lint, pushes run CI-equivalent verification, and commit messages are checked against the repo's conventional commit prefixes.
@@ -30,11 +34,10 @@
 - **Workflow settings primitives** — GedCode now resolves protected-branch workflow policy from global `~/.gedcode/settings.json` plus optional project-local `.gedcode/settings.json` overrides and exposes the effective policy in state output.
 - **Protected-branch workflow guard** — source edits and mutating shell commands are blocked on protected branches such as `main`/`master` by default once planning is ready, unless global or project GedCode settings explicitly allow direct protected-branch changes.
 - **Branch-scoped planning path helpers** — GedCode can derive safe work IDs from git branch names and select `.ged/work/<branch-slug>/` planning paths with root planning fallback when no branch is available.
-- **Active work planning guard** — the plan-before-edit guard now prefers branch-scoped `.ged/work/<branch-slug>/SPEC.md`, `TASKS.md`, and `TESTS.md` while still accepting legacy root planning files as a migration fallback.
-- **Collaboration checkpoint status** — agents can now report the current branch, protected-branch policy, active Omni work-memory path, planning readiness, root fallback use, and next recommended action before starting or resuming change work.
+- **Active work planning guard** — the plan-before-edit guard now prefers branch-scoped `.ged/work/<branch-slug>/SPEC.md`, `TASKS.md`, and `TESTS.md` and no longer accepts legacy root planning files.
+- **Collaboration checkpoint status** — agents can now report the current branch, protected-branch policy, active Omni work-memory path, planning readiness, and next recommended action before starting or resuming change work.
 - **Explicit start-work workflow** — added `gedcode_start_work` to create or switch to a feature branch, initialize `.ged/work/<branch-slug>/`, and refuse dirty checkouts by default with proposed safe next steps.
 - **PR completion settings and tool** — added PR workflow settings for offering or auto-creating PRs on completion plus explicit `gedcode_create_pr` support that can push the branch when needed and builds a PR body from active planning context.
-- **Root plan migration tool** — added `gedcode_migrate_root_plan` to copy non-placeholder root `.ged` planning files into the active branch-scoped work directory with overwrite protection and migration notes.
 - **Branch-scoped runtime state** — runtime state and session summaries now write to `.ged/runtime/<branch-slug-or-root>/` instead of root singleton files, with runtime directories ignored by git.
 - **TDD workflow skill** — added bundled `tdd` guidance for behavior-changing slices, with active-work `TESTS.md` expectations for red-green-refactor planning and verification.
 - **Diagnose workflow skill** — added bundled bug/performance-regression guidance for reproduce, minimize, hypothesize, instrument, fix, and regression-test loops.
@@ -65,11 +68,10 @@
 - Added tests for workflow settings defaults, global/project override merge, invalid settings fallback, and status formatting.
 - Added tests for git branch detection, protected-branch blocking, and project settings overrides in the mutating-tool guard.
 - Added tests for branch slug generation and active `.ged/work/<branch-slug>/` planning path selection.
-- Added tests for active work planning readiness, legacy root fallback, and branch-aware planning guard messages.
+- Added tests for active work planning readiness, branch-aware planning guard messages.
 - Added tests for collaboration checkpoint status output on feature and protected branches.
 - Added tests for start-work branch validation, dirty checkout guidance, branch creation, branch switching, and planning-directory initialization.
 - Added tests for PR workflow settings, PR prerequisite summaries, and PR body generation without GitHub network access.
-- Added tests for root plan migration, placeholder refusal, overwrite refusal, overwrite success, and migration notes.
 - Added tests for branch-scoped runtime paths, root runtime fallback, gitignore updates, and state/session writes.
 - Added tests for `tdd` bundled skill memory and suggestion heuristics.
 - Added tests for `diagnose` bundled skill memory and suggestion heuristics.
