@@ -5,8 +5,8 @@
 ### Breaking Changes
 
 - Removed legacy root planning fallback and `gedcode_migrate_root_plan`; GedCode now requires active `.ged/work/<work-id>/SPEC.md`, `TASKS.md`, and `TESTS.md` planning files before source mutations.
-- Removed the `/ged-mode` slash command and `gedcode_set_mode` tool. Ged mode is always on for GedCode agents; toggling is no longer needed. The `gedcode_bootstrap` tool no longer accepts a `mode` argument (always boots with mode on).
-- Renamed the product and all user-facing strings from "Omni" to "Ged": `OMNI_*` exports renamed to `GED_*` (with backward-compat aliases), durable `.ged/` file templates updated and expanded (added `CONTEXT-MAP.md`, `ARCHITECTURE.md`, `PATTERNS.md`, `GLOSSARY.md`), memory schema version bumped from 1 to 2, `readOmniMode` now accepts both "Ged Mode" and "Omni Mode" config keys for backward compatibility.
+- Removed the `/ged-mode` slash command and `gedcode_set_mode` tool. Ged mode is always on for GedCode agents; toggling is no longer needed. The `gedcode_bootstrap` tool no longer accepts a `mode` argument (always boots with mode on). Stale `.ged/CONFIG.md` files with `Ged Mode: off` no longer bypass planning guards — enforcement is always active.
+- Renamed the product and all user-facing strings from "Omni" to "Ged": `OMNI_*` exports renamed to `GED_*` (with backward-compat aliases), durable `.ged/` file templates updated and expanded (added `CONTEXT-MAP.md`, `ARCHITECTURE.md`, `PATTERNS.md`, `GLOSSARY.md`), memory schema version bumped from 1 to 2.
 
 ### Features
 

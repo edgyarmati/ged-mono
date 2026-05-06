@@ -82,7 +82,7 @@ Current features:
   - `gedcode_create_pr`
 - bootstraps `.ged/` on `session.created`
 - adds active `.ged/runtime/<branch-slug-or-root>/STATE.md` into compaction context
-- guards `write` / `edit` when Ged mode is on and planning artifacts are missing
+- guards `write` / `edit` until real planning content exists in `SPEC.md`, `TASKS.md`, and `TESTS.md`
 - placeholder bootstrap planning files are not enough; source edits require real planning content
 - auto-escalates trivial→non-trivial when >1 source file is touched
 - invalidates verifier checkpoints on source edits to force re-verification before commit

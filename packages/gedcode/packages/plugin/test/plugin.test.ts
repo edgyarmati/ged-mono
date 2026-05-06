@@ -1046,7 +1046,7 @@ test("ensureOmniDir preserves templates and setOmniMode updates state coherently
 
     assert.match(config, /(?:Ged|Omni) Mode: off/);
     assert.match(state, /Current Phase: passive/);
-    assert.match(state, /(?:Ged|Omni) mode disabled/);
+    assert.match(state, /Guards remain active/);
   });
 });
 

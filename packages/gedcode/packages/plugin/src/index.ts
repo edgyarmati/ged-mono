@@ -1143,19 +1143,6 @@ export async function ensureOmniDir(directory: string): Promise<string> {
   return omniDir;
 }
 
-async function readOmniConfig(directory: string): Promise<string> {
-  try {
-    return await readFile(path.join(directory, ".ged", "CONFIG.md"), "utf8");
-  } catch {
-    return "";
-  }
-}
-
-async function readOmniMode(directory: string): Promise<OmniMode> {
-  const config = await readOmniConfig(directory);
-  return /(?:Ged|Omni) Mode:\s*off/iu.test(config) ? "off" : "on";
-}
-
 async function inferProjectGoal(directory: string): Promise<string> {
   try {
     const packageJson = JSON.parse(
@@ -1225,9 +1212,9 @@ export async function setOmniMode(directory: string, mode: OmniMode): Promise<vo
   await updateStateFile(directory, {
     currentPhase: "passive",
     activeTask: "",
-    statusSummary: "Ged mode disabled. Durable .ged context remains available as passive guidance.",
+    statusSummary: "Ged mode off (legacy). Guards remain active — mode is always on for GedCode agents.",
     blockers: [],
-    nextStep: "Re-enable Ged mode when you want the full planning and verification workflow.",
+    nextStep: "Ged mode is always on. The planning and verification workflow is always enforced.",
   });
 }
 
@@ -1932,9 +1919,6 @@ export const GedCodePlugin: Plugin = async ({ directory }, options) => {
         (k) => typeof args[k] === "string" && (k === "command" || k === "cmd"),
       );
       const originalBashCommand = input.tool === "bash" && commandKey ? String(args[commandKey]) : null;
-
-      const activeMode = await readOmniMode(directory);
-      if (activeMode === "off") return;
 
       const fileMutatingTool = input.tool === "write" || input.tool === "edit";
       const gitCommitCommand = originalBashCommand ? isGitCommitCommand(originalBashCommand) : false;

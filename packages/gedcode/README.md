@@ -42,7 +42,7 @@ gedcode
 - **Architecture review command** — `/improve-codebase-architecture` finds deepening opportunities and asks what to explore before any refactor starts.
 - **Clean-context review command** — `/clean-context-review` reviews the current diff/tests with fresh eyes and requires finding adjudication before commit.
 - **Optional native subagents** — `/ged-agents` can opt into read-only intelligence helpers (`ged-explorer`, `ged-planner`, `ged-verifier`) while preserving GedCode's single-writer default. There is no writer subagent role.
-- **Plan before edit** — when Ged mode is on, the agent can't touch your files until `SPEC.md`, `TASKS.md`, and `TESTS.md` have real content.
+- **Plan before edit** — the agent can't touch your files until `SPEC.md`, `TASKS.md`, and `TESTS.md` have real content.
 - **Repo awareness** — a ranked repo map keeps the agent oriented in large codebases.
 - **Skill discovery and local creation** — relevant skills are surfaced and loaded automatically; if discovery cannot find a fit, GedCode can write a narrow local skill under `.ged/skills/` without touching global user skills.
 - **Collaboration-safe memory direction** — shared project knowledge stays durable, while active work is moving toward per-branch `.ged/work/<branch>/` plans and protected-branch guardrails.

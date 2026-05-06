@@ -111,11 +111,11 @@ async function writeRealPlanning(directory: string) {
       "- [ ] Hook rejects write and edit when SPEC, TASKS, or TESTS are still bootstrap content",
       "- [ ] Hook accepts write and edit once SPEC, TASKS, and TESTS contain concrete project content",
       "- [ ] Hook always allows writes targeting paths inside .ged/",
-      "- [ ] Hook is a no-op when Omni mode is off, regardless of planning state",
+      "- [ ] Hook enforces guards even when CONFIG.md says Ged mode is off (stale config cannot bypass)",
       "",
       "## Expected outcomes",
       "",
-      "All five hook tests pass under npm test in the plugin workspace and in CI.",
+      ("All hook tests pass under npm test in the plugin workspace and in CI."),
       "",
     ].join("\n"),
     "utf8",
@@ -487,15 +487,60 @@ test("tool.execute.before rejects paths that escape the project .ged directory",
   });
 });
 
-test("tool.execute.before is a no-op when Omni mode is off", async () => {
+test("tool.execute.before enforces guards when CONFIG.md says Ged mode is off", async () => {
   await withTempDir(async (dir) => {
     await ensureOmniDir(dir);
     await setOmniMode(dir, "off");
     const hook = await buildHook(dir);
 
-    await hook(
-      { tool: "write" },
-      { args: { filePath: path.join(dir, "src", "example.ts") } },
+    await assert.rejects(
+      () =>
+        hook(
+          { tool: "write" },
+          { args: { filePath: path.join(dir, "src", "example.ts") } },
+        ),
+      /GedCode guard: before editing source files/,
+    );
+  });
+});
+
+test("tool.execute.before enforces guards when CONFIG.md says Omni mode is off (legacy)", async () => {
+  await withTempDir(async (dir) => {
+    await ensureOmniDir(dir);
+    // Write legacy Omni Mode: off directly to test backward-compat config
+    await writeFile(
+      path.join(dir, ".ged", "CONFIG.md"),
+      "# Omni Configuration\n\nOmni Mode: off\n",
+      "utf8",
+    );
+    const hook = await buildHook(dir);
+
+    await assert.rejects(
+      () =>
+        hook(
+          { tool: "write" },
+          { args: { filePath: path.join(dir, "src", "example.ts") } },
+        ),
+      /GedCode guard: before editing source files/,
+    );
+  });
+});
+
+test("tool.execute.before rejects git commit with stale CONFIG.md off and no classification", async () => {
+  await withTempDir(async (dir) => {
+    await ensureOmniDir(dir);
+    await setOmniMode(dir, "off");
+    await writeRealPlanning(dir);
+    await rm(await checkpointPath(dir), { force: true });
+    const hook = await buildHook(dir);
+
+    await assert.rejects(
+      () =>
+        hook(
+          { tool: "bash" },
+          { args: { command: "git commit -m test" } },
+        ),
+      /classify the task before committing/,
     );
   });
 });
