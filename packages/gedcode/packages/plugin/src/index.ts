@@ -132,7 +132,7 @@ type RawGedCodeSettings = {
   };
 };
 
-const OMNI_VERSION = "1";
+const GED_VERSION = "2";
 export const DEFAULT_WORKFLOW_SETTINGS: WorkflowSettings = {
   protectedBranches: ["main", "master"],
   requireFeatureBranchForChanges: true,
@@ -150,7 +150,7 @@ const GEDCODE_SETTINGS_DIR = ".gedcode";
 const GEDCODE_SETTINGS_FILE = "settings.json";
 const GEDCODE_MODEL_RECOMMENDATIONS_FILE = "model-recommendations.md";
 const GEDCODE_PROJECT_GITIGNORE_ENTRY = `${GEDCODE_SETTINGS_DIR}/`;
-const OMNI_SUBAGENT_NAMES: OmniSubagentName[] = [
+const GED_SUBAGENT_NAMES: OmniSubagentName[] = [
   "ged-explorer",
   "ged-planner",
   "ged-verifier",
@@ -164,7 +164,7 @@ type OmniAgentConfig = {
   permission?: Record<string, unknown>;
 };
 
-const OMNI_SUBAGENT_DEFAULTS: Record<OmniSubagentName, OmniAgentConfig> = {
+const GED_SUBAGENT_DEFAULTS: Record<OmniSubagentName, OmniAgentConfig> = {
   "ged-explorer": {
     description: "Read-only scout that returns evidence-backed discovery packets to the single-writer GedCode orchestrator.",
     mode: "subagent",
@@ -372,15 +372,15 @@ function buildSubagentConfig(settings: GedCodeSettings, agentName: OmniSubagentN
   const fallbackModel = settings.agents.defaultModel;
   if (typeof agentModelConfig === "string") {
     const model = agentModelConfig || fallbackModel;
-    return { ...OMNI_SUBAGENT_DEFAULTS[agentName], ...(model ? { model } : {}) };
+    return { ...GED_SUBAGENT_DEFAULTS[agentName], ...(model ? { model } : {}) };
   }
   if (isRecord(agentModelConfig)) {
     const { model: rawModel, ...passthrough } = agentModelConfig as { model?: string; [key: string]: unknown };
     const model = (typeof rawModel === "string" && rawModel.trim().length > 0 ? rawModel.trim() : undefined) ?? fallbackModel;
     const extras = Object.keys(passthrough).length > 0 ? passthrough : {};
-    return { ...OMNI_SUBAGENT_DEFAULTS[agentName], ...(model ? { model } : {}), ...extras };
+    return { ...GED_SUBAGENT_DEFAULTS[agentName], ...(model ? { model } : {}), ...extras };
   }
-  return { ...OMNI_SUBAGENT_DEFAULTS[agentName], ...(fallbackModel ? { model: fallbackModel } : {}) };
+  return { ...GED_SUBAGENT_DEFAULTS[agentName], ...(fallbackModel ? { model: fallbackModel } : {}) };
 }
 
 function formatAgentModelConfig(config: AgentModelConfig | undefined, fallbackModel: string | undefined): string {
@@ -411,7 +411,7 @@ export function formatAgentsSettingsStatus(settings: GedCodeSettings, paths: { g
     `Default model: ${settings.agents.defaultModel ?? "inherit invoking model"}`,
     `Per-agent models: ${Object.keys(settings.agents.models).length > 0 ? `${Object.keys(settings.agents.models).length} configured` : "none"}`,
     "Resolved subagent configs:",
-    ...OMNI_SUBAGENT_NAMES.map((agentName) => `- ${agentName}: ${formatAgentModelConfig(settings.agents.models[agentName], settings.agents.defaultModel)}`),
+    ...GED_SUBAGENT_NAMES.map((agentName) => `- ${agentName}: ${formatAgentModelConfig(settings.agents.models[agentName], settings.agents.defaultModel)}`),
     `Checkpoint policy: ${checkpointState}`,
     `Model recommendations: ${paths.recommendationsPath ?? "none found"}`,
   ].join("\n");
@@ -433,7 +433,7 @@ function orchestrationPrompt(basePrompt: string): string {
 function normalizeAgentModels(value: unknown): Partial<Record<OmniSubagentName, AgentModelConfig>> {
   if (!isRecord(value)) return {};
   const models: Partial<Record<OmniSubagentName, AgentModelConfig>> = {};
-  for (const agentName of OMNI_SUBAGENT_NAMES) {
+  for (const agentName of GED_SUBAGENT_NAMES) {
     const entry = value[agentName];
     if (typeof entry === "string" && entry.trim().length > 0) {
       models[agentName] = entry.trim();
@@ -575,7 +575,7 @@ function settingsPathForScope(directory: string, scope: GedCodeSettingsScope, ho
 
 function cleanModelPatch(models: Partial<Record<OmniSubagentName, AgentModelConfig>> | undefined): Partial<Record<OmniSubagentName, AgentModelConfig>> {
   const cleaned: Partial<Record<OmniSubagentName, AgentModelConfig>> = {};
-  for (const agentName of OMNI_SUBAGENT_NAMES) {
+  for (const agentName of GED_SUBAGENT_NAMES) {
     const entry = models?.[agentName];
     if (typeof entry === "string" && entry.trim().length > 0) {
       cleaned[agentName] = entry.trim();
@@ -736,9 +736,9 @@ export async function activeRuntimePaths(directory: string): Promise<RuntimePath
 async function writePlanningTemplateIfMissing(paths: PlanningArtifactPaths): Promise<void> {
   await mkdir(paths.baseDir, { recursive: true });
   const templates: Array<[string, string]> = [
-    [paths.specPath, OMNI_FILES["SPEC.md"]],
-    [paths.tasksPath, OMNI_FILES["TASKS.md"]],
-    [paths.testsPath, OMNI_FILES["TESTS.md"]],
+    [paths.specPath, GED_FILES["SPEC.md"]],
+    [paths.tasksPath, GED_FILES["TASKS.md"]],
+    [paths.testsPath, GED_FILES["TESTS.md"]],
   ];
   for (const [filePath, content] of templates) {
     try {
@@ -997,7 +997,7 @@ function markdownFenceFor(content: string): string {
   return "`".repeat(longest + 1);
 }
 
-export const OMNI_RUNTIME_FILES = [
+export const GED_RUNTIME_FILES = [
   "STATE.md",
   "SESSION-SUMMARY.md",
   "REPO-MAP.md",
@@ -1008,11 +1008,12 @@ const STATE_TEMPLATE = "# State\n\nCurrent Phase: discovery\nActive Task: bootst
 
 const SESSION_SUMMARY_TEMPLATE = "# Session Summary\n\n## Progress Made\n\n- Bootstrapped GedCode durable memory for this project.\n\n## Remaining Work\n\n- Clarify the request and write the first real spec, tasks, and tests.\n\n## Notes\n\nUse this file for concise cross-session handoff notes.\n";
 
-export const OMNI_DURABLE_FILES = [
+export const GED_DURABLE_FILES = [
   "PROJECT.md",
-  "SPEC.md",
-  "TASKS.md",
-  "TESTS.md",
+  "CONTEXT-MAP.md",
+  "ARCHITECTURE.md",
+  "PATTERNS.md",
+  "GLOSSARY.md",
   "DECISIONS.md",
   "STANDARDS.md",
   "SKILLS.md",
@@ -1020,7 +1021,13 @@ export const OMNI_DURABLE_FILES = [
   "VERSION",
 ] as const;
 
-export const OMNI_GITIGNORE = [
+// Compatibility aliases
+/** @deprecated Use GED_DURABLE_FILES instead */
+export const OMNI_DURABLE_FILES = GED_DURABLE_FILES;
+/** @deprecated Use GED_RUNTIME_FILES instead */
+export const OMNI_RUNTIME_FILES = GED_RUNTIME_FILES;
+
+export const GED_GITIGNORE = [
   "# Runtime GedCode state: keep out of git by default.",
   "STATE.md",
   "SESSION-SUMMARY.md",
@@ -1031,17 +1038,28 @@ export const OMNI_GITIGNORE = [
   "# Durable GedCode memory may be committed when it reflects real project intent.",
 ].join("\n");
 
-export const OMNI_FILES: Record<string, string> = {
-  "PROJECT.md": "# Project\n\n## Goal\n\nDescribe what this project is trying to achieve.\n\n## Users\n\nDescribe the primary users or stakeholders.\n\n## Constraints\n\nList important product, technical, or workflow constraints.\n\n## Success Criteria\n\nList the observable outcomes that mean the work is successful.\n",
-  "SPEC.md": "# Spec\n\n## Problem\n\nDescribe the specific problem to solve.\n\n## Requested Behavior\n\nList the expected behavior clearly before implementation.\n\n## Constraints\n\nList any implementation constraints or non-goals.\n\n## Success Criteria\n\nList concrete checks that make this request complete.\n",
+/** @deprecated Use GED_GITIGNORE instead */
+export const OMNI_GITIGNORE = GED_GITIGNORE;
+
+export const GED_FILES: Record<string, string> = {
+  "CONTEXT-MAP.md": "# Context Map\n\nGed memory is current-state oriented. Durable root files describe the project as it is now; active work and runtime state live under branch/work scoped directories.\n\n## Durable root memory\n\n- \`.ged/PROJECT.md\` — product goal, users, constraints, success criteria, repo signals.\n- \`.ged/ARCHITECTURE.md\` — current component boundaries and system shape.\n- \`.ged/PATTERNS.md\` — implementation conventions and recurring workflow patterns.\n- \`.ged/GLOSSARY.md\` — project/domain vocabulary.\n- \`.ged/DECISIONS.md\` — durable decisions and rationale.\n- \`.ged/STANDARDS.md\` — imported repo-wide agent standards.\n- \`.ged/SKILLS.md\` — durable skill guidance and project skill state.\n- \`.ged/CONFIG.md\` / \`.ged/VERSION\` — Ged configuration and memory schema version.\n\n## Active work memory\n\n- \`.ged/work/<work-id>/SPEC.md\` — current work-item contract.\n- \`.ged/work/<work-id>/TASKS.md\` — bounded implementation slices.\n- \`.ged/work/<work-id>/TESTS.md\` — verification plan and evidence.\n- \`.ged/work/<work-id>/NOTES.md\` — handoff notes local to the work item.\n- \`.ged/work/<work-id>/META.json\` — machine-readable work metadata.\n\n## Runtime memory\n\n- \`.ged/runtime/<work-id>/STATE.md\` — current phase/status for this work item.\n- \`.ged/runtime/<work-id>/SESSION-SUMMARY.md\` — session handoff note.\n- \`.ged/runtime/<work-id>/checkpoints.json\` — workflow checkpoint state.\n",
+  "PROJECT.md": "# Project\n\n## Goal\n\nDescribe what this project is trying to achieve.\n\n## Users\n\n- Primary users:\n- Secondary users:\n\n## Constraints\n\n- Technical constraints:\n- Product constraints:\n\n## Success Criteria\n\n- What does success look like?\n\n## Repo Signals\n\n- Detected languages: unknown\n- Detected frameworks: unknown\n- Detected tools: unknown\n",
+  "ARCHITECTURE.md": "# Architecture\n\nDescribe current system components, boundaries, and data flow.\n",
+  "PATTERNS.md": "# Patterns\n\nRecord implementation conventions and recurring workflow patterns.\n",
+  "GLOSSARY.md": "# Glossary\n\nRecord domain terms and definitions.\n",
+  "SPEC.md": "# Spec\n\n## Problem\n\nDescribe the specific problem to solve.\n\n## Solution shape\n\nDescribe the proposed solution at a high level.\n\n## Key workflows\n\nList the important user or system workflows.\n\n## Risks\n\nIdentify potential risks or unknowns.\n\n## Open questions\n\nList questions that need answers before or during implementation.\n",
   "TASKS.md": "# Tasks\n\n## Planned slices\n\n- [ ] Slice 1: define the first bounded implementation step\n\n## Notes\n\nBreak work into bounded, verifiable slices before editing source files.\n",
   "TESTS.md": "# Tests\n\n## Checks\n\n- [ ] define the checks to run after each implementation slice\n\n## Expected outcomes\n\nDescribe what passing looks like.\n",
-  "DECISIONS.md": "# Decisions\n\nRecord important choices and why they were made.\n",
-  "STANDARDS.md": "# Imported Standards\n\nRecord imported standards from AGENTS.md, CLAUDE.md, Cursor rules, and similar files.\n",
-  "SKILLS.md": "# Skills\n\n## Bundled\n\n- grill-me\n- grill-with-docs\n- find-skills\n- skill-maker\n- tdd\n- diagnose\n- improve-codebase-architecture\n- brainstorming\n- ged-planning\n- ged-execution\n- ged-verification\n\n## Suggested For Current Work\n\n- None inferred from the current task yet.\n\n## Project Notes\n\nRecord required and project-specific skills here.\n",
-  "CONFIG.md": "# Omni Configuration\n\nOmni Mode: on\n",
-  VERSION: `${OMNI_VERSION}\n`,
+  "DECISIONS.md": "# Decisions\n\nRecord important choices here as the project evolves.\n\n## Entries\n\n- Date: YYYY-MM-DD\n  - Decision:\n  - Why:\n  - Impact:\n",
+  "STANDARDS.md": "# Imported Standards\n\nThese standards were imported from other harness-specific instruction files and approved for Ged use.\n\nNo imported standards have been accepted yet.\n",
+  "SKILLS.md": "# Skills\n\n## Installed\n\n- None yet\n\n## Recommended\n\n- None yet\n\n## Deferred\n\n- None yet\n\n## Rejected\n\n- None yet\n\n## Usage Notes\n\n- Record why a skill was installed, recommended, or skipped.\n",
+  "CONFIG.md": "# Ged Configuration\n\nGed Mode: on\n",
+  VERSION: `${GED_VERSION}\n`,
 };
+
+// Compatibility alias for downstream consumers
+/** @deprecated Use GED_FILES instead */
+export const OMNI_FILES = GED_FILES;
 
 function parseFrontmatter(content: string): {
   frontmatter: CommandFrontmatter;
@@ -1106,7 +1124,7 @@ async function loadCommands(): Promise<ParsedCommand[]> {
 export async function ensureOmniDir(directory: string): Promise<string> {
   const omniDir = path.join(directory, ".ged");
   await mkdir(omniDir, { recursive: true });
-  for (const [fileName, content] of Object.entries(OMNI_FILES)) {
+  for (const [fileName, content] of Object.entries(GED_FILES)) {
     const filePath = path.join(omniDir, fileName);
     try {
       await stat(filePath);
@@ -1119,7 +1137,7 @@ export async function ensureOmniDir(directory: string): Promise<string> {
   try {
     await stat(gitignorePath);
   } catch {
-    await writeFileAtomic(gitignorePath, `${OMNI_GITIGNORE}\n`);
+    await writeFileAtomic(gitignorePath, `${GED_GITIGNORE}\n`);
   }
 
   return omniDir;
@@ -1135,7 +1153,7 @@ async function readOmniConfig(directory: string): Promise<string> {
 
 async function readOmniMode(directory: string): Promise<OmniMode> {
   const config = await readOmniConfig(directory);
-  return /Omni Mode:\s*off/iu.test(config) ? "off" : "on";
+  return /(?:Ged|Omni) Mode:\s*off/iu.test(config) ? "off" : "on";
 }
 
 async function inferProjectGoal(directory: string): Promise<string> {
@@ -1157,8 +1175,8 @@ async function inferProjectGoal(directory: string): Promise<string> {
 async function initializeProjectFile(directory: string): Promise<void> {
   const omniDir = await ensureOmniDir(directory);
   const projectPath = path.join(omniDir, "PROJECT.md");
-  const current = await readFile(projectPath, "utf8").catch(() => OMNI_FILES["PROJECT.md"]);
-  if (current.trim() !== OMNI_FILES["PROJECT.md"].trim()) {
+  const current = await readFile(projectPath, "utf8").catch(() => GED_FILES["PROJECT.md"]);
+  if (current.trim() !== GED_FILES["PROJECT.md"].trim()) {
     return;
   }
 
@@ -1190,14 +1208,14 @@ export async function setOmniMode(directory: string, mode: OmniMode): Promise<vo
   const omniDir = await ensureOmniDir(directory);
   await writeFileAtomic(
     path.join(omniDir, "CONFIG.md"),
-    `# Omni Configuration\n\nOmni Mode: ${mode}\n`,
+    `# Ged Configuration\n\nGed Mode: ${mode}\n`,
   );
 
   if (mode === "on") {
     await updateStateFile(directory, {
       currentPhase: "discovery",
       activeTask: "bootstrap",
-      statusSummary: "Omni mode enabled. Workspace ready for planning.",
+      statusSummary: "Ged mode enabled. Workspace ready for planning.",
       blockers: [],
       nextStep: "Clarify scope, write spec, define tests, and break work into tasks before implementation.",
     });
@@ -1207,9 +1225,9 @@ export async function setOmniMode(directory: string, mode: OmniMode): Promise<vo
   await updateStateFile(directory, {
     currentPhase: "passive",
     activeTask: "",
-    statusSummary: "Omni mode disabled. Durable .ged context remains available as passive guidance.",
+    statusSummary: "Ged mode disabled. Durable .ged context remains available as passive guidance.",
     blockers: [],
-    nextStep: "Re-enable Omni mode when you want the full planning and verification workflow.",
+    nextStep: "Re-enable Ged mode when you want the full planning and verification workflow.",
   });
 }
 
@@ -1695,9 +1713,9 @@ export async function planningArtifactsReadyAt(paths: PlanningArtifactPaths): Pr
     const normalizedSpec = specContent.trim();
     const normalizedTasks = tasksContent.trim();
     const normalizedTests = testsContent.trim();
-    const defaultSpec = OMNI_FILES["SPEC.md"].trim();
-    const defaultTasks = OMNI_FILES["TASKS.md"].trim();
-    const defaultTests = OMNI_FILES["TESTS.md"].trim();
+    const defaultSpec = GED_FILES["SPEC.md"].trim();
+    const defaultTasks = GED_FILES["TASKS.md"].trim();
+    const defaultTests = GED_FILES["TESTS.md"].trim();
 
     return (
       normalizedSpec.length > defaultSpec.length &&
@@ -1842,7 +1860,7 @@ export const GedCodePlugin: Plugin = async ({ directory }, options) => {
       config.agent.gedcode = gedcodeAgentConfig as unknown as typeof config.agent.gedcode;
 
       if (settings.agents.enabled) {
-        for (const agentName of OMNI_SUBAGENT_NAMES) {
+        for (const agentName of GED_SUBAGENT_NAMES) {
           config.agent[agentName] = buildSubagentConfig(settings, agentName) as unknown as typeof config.agent.gedcode;
         }
       }
@@ -2040,32 +2058,19 @@ export const GedCodePlugin: Plugin = async ({ directory }, options) => {
       gedcode_bootstrap: tool({
         description:
           "Create the .ged durable-memory folder and default GedCode workflow files in the current project.",
-        args: {
-          mode: tool.schema.enum(["on", "off"]).optional().describe("Initial Omni mode; defaults to on."),
-        },
-        async execute(args) {
+        args: {},
+        async execute() {
           await ensureOmniDir(directory);
           await initializeProjectFile(directory);
-          await setOmniMode(directory, (args.mode as OmniMode | undefined) ?? "on");
+          await setOmniMode(directory, "on");
           await appendSessionSummary(directory, {
             title: "Bootstrap",
             bullets: [
               "Initialized .ged durable memory for the project.",
-              `Set Omni mode to ${(args.mode as OmniMode | undefined) ?? "on"}.`,
+              "Set Ged mode to on.",
             ],
           });
           return `Bootstrapped ${path.join(directory, ".ged")}`;
-        },
-      }),
-
-      gedcode_set_mode: tool({
-        description: "Turn Omni mode on or off for the current project.",
-        args: {
-          mode: tool.schema.enum(["on", "off"]).describe("Desired Omni mode."),
-        },
-        async execute(args) {
-          await setOmniMode(directory, args.mode as OmniMode);
-          return `Omni mode set to ${args.mode}.`;
         },
       }),
 
@@ -2148,7 +2153,7 @@ export const GedCodePlugin: Plugin = async ({ directory }, options) => {
 
       gedcode_collaboration_status: tool({
         description:
-          "Report current branch, protected-branch policy, active Omni work-memory path, and planning readiness.",
+          "Report current branch, protected-branch policy, active Ged work-memory path, and planning readiness.",
         args: {},
         async execute() {
           await ensureOmniDir(directory);

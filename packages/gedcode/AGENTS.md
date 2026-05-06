@@ -15,12 +15,12 @@ OpenCode owns the UX and runtime. GedCode owns the **workflow layer**.
 
 ## Product goal
 
-Bring the Omni workflow into OpenCode with a thin wrapper.
+Bring the Ged workflow into OpenCode with a thin wrapper.
 
 Core idea:
 - keep OpenCode as the mature host app
 - load GedCode as a plugin
-- preserve the Omni workflow:
+- preserve the Ged workflow:
   - `.ged/` durable memory
   - collaboration-safe per-work memory direction for parallel branches
   - automatic grill-me clarification before change requests
@@ -67,7 +67,6 @@ Current features:
 - loads GedCode command markdown files from `src/resources/commands/`
 - exposes custom tools:
   - `gedcode_bootstrap`
-  - `gedcode_set_mode`
   - `gedcode_state`
   - `gedcode_update_state`
   - `gedcode_append_session_summary`
@@ -81,11 +80,12 @@ Current features:
   - `gedcode_collaboration_status`
   - `gedcode_start_work`
   - `gedcode_create_pr`
-  - `gedcode_migrate_root_plan`
 - bootstraps `.ged/` on `session.created`
 - adds active `.ged/runtime/<branch-slug-or-root>/STATE.md` into compaction context
-- guards `write` / `edit` when Omni mode is on and planning artifacts are missing
+- guards `write` / `edit` when Ged mode is on and planning artifacts are missing
 - placeholder bootstrap planning files are not enough; source edits require real planning content
+- auto-escalates trivial→non-trivial when >1 source file is touched
+- invalidates verifier checkpoints on source edits to force re-verification before commit
 - optional native subagents follow a single-writer model: `ged-explorer`, `ged-planner`, and `ged-verifier` are read-only/advisory intelligence helpers; there is no writer subagent role
 
 Planning artifacts currently required before source editing:
@@ -98,7 +98,6 @@ Planning artifacts currently required before source editing:
 Under `packages/plugin/src/resources/`:
 - `instructions/gedcode-agent.md`
 - `commands/ged-init.md`
-- `commands/ged-mode.md`
 - `commands/ged-status.md`
 - `commands/ged-import-standards.md`
 - `commands/ged-skills.md`
@@ -140,7 +139,7 @@ Current behavior:
   - provider management from GedPi
   - custom UI/theming/status work
   - standalone OpenTUI shell work
-- focus only on the real differentiator: **the Omni workflow layer**
+- focus only on the real differentiator: **the Ged workflow layer**
 
 ## Documents to read first
 

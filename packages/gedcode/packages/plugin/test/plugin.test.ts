@@ -6,7 +6,7 @@ import path from "node:path";
 import { chmod, mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 
 import {
-  OMNI_FILES,
+  GED_FILES,
   OMNI_GITIGNORE,
   GedCodePlugin,
   appendSessionSummary,
@@ -85,9 +85,9 @@ function runGitTest(directory: string, args: string[]): Promise<void> {
 
 async function writeRealPlanningFiles(baseDir: string) {
   await mkdir(baseDir, { recursive: true });
-  await writeFile(path.join(baseDir, "SPEC.md"), `${OMNI_FILES["SPEC.md"]}\n## Real\nSpec content\n`, "utf8");
-  await writeFile(path.join(baseDir, "TASKS.md"), `${OMNI_FILES["TASKS.md"]}\n## Real\n- [ ] Task\n`, "utf8");
-  await writeFile(path.join(baseDir, "TESTS.md"), `${OMNI_FILES["TESTS.md"]}\n## Real\n- [ ] Test\n`, "utf8");
+  await writeFile(path.join(baseDir, "SPEC.md"), `${GED_FILES["SPEC.md"]}\n## Real\nSpec content\n`, "utf8");
+  await writeFile(path.join(baseDir, "TASKS.md"), `${GED_FILES["TASKS.md"]}\n## Real\n- [ ] Task\n`, "utf8");
+  await writeFile(path.join(baseDir, "TESTS.md"), `${GED_FILES["TESTS.md"]}\n## Real\n- [ ] Test\n`, "utf8");
 }
 
 async function buildPluginConfig(directory: string, options?: { homeDir?: string }): Promise<MutableOpenCodeConfig> {
@@ -871,7 +871,7 @@ test("GedCodePlugin registers clean-context-review command and commit guidance",
   });
 });
 
-test("plugin config registers optional Omni subagents and ged-agents command", async () => {
+test("plugin config registers optional Ged subagents and ged-agents command", async () => {
   await withTempDir(async (dir) => {
     const removedWriterName = ["omni", "worker"].join("-");
     const homeDir = path.join(dir, "home");
@@ -1036,7 +1036,7 @@ test("ensureOmniDir preserves templates and setOmniMode updates state coherently
     let state = await readFile(runtimePaths.statePath, "utf8");
     let config = await readFile(path.join(dir, ".ged", "CONFIG.md"), "utf8");
 
-    assert.match(config, /Omni Mode: on/);
+    assert.match(config, /(?:Ged|Omni) Mode: on/);
     assert.match(state, /Current Phase: discovery/);
     assert.match(state, /Workspace ready for planning/);
 
@@ -1044,9 +1044,9 @@ test("ensureOmniDir preserves templates and setOmniMode updates state coherently
     state = await readFile(runtimePaths.statePath, "utf8");
     config = await readFile(path.join(dir, ".ged", "CONFIG.md"), "utf8");
 
-    assert.match(config, /Omni Mode: off/);
+    assert.match(config, /(?:Ged|Omni) Mode: off/);
     assert.match(state, /Current Phase: passive/);
-    assert.match(state, /Omni mode disabled/);
+    assert.match(state, /(?:Ged|Omni) mode disabled/);
   });
 });
 

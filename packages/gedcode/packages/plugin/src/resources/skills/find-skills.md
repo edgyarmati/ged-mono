@@ -25,5 +25,5 @@ Search guidance:
 
 Boundary:
 - Do not implement product changes while finding skills.
-- Do not load domain/implementation skills before the skill-fit checkpoint, except core Omni workflow skills required to run the process.
-- Do not install global/user skills during the automatic Omni workflow; global skills are explicitly user-managed.
+- Do not load domain/implementation skills before the skill-fit checkpoint, except core Ged workflow skills required to run the process.
+- Do not install global/user skills during the automatic Ged workflow; global skills are explicitly user-managed.

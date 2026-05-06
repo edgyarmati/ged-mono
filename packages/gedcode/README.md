@@ -42,7 +42,7 @@ gedcode
 - **Architecture review command** — `/improve-codebase-architecture` finds deepening opportunities and asks what to explore before any refactor starts.
 - **Clean-context review command** — `/clean-context-review` reviews the current diff/tests with fresh eyes and requires finding adjudication before commit.
 - **Optional native subagents** — `/ged-agents` can opt into read-only intelligence helpers (`ged-explorer`, `ged-planner`, `ged-verifier`) while preserving GedCode's single-writer default. There is no writer subagent role.
-- **Plan before edit** — when Omni mode is on, the agent can't touch your files until `SPEC.md`, `TASKS.md`, and `TESTS.md` have real content.
+- **Plan before edit** — when Ged mode is on, the agent can't touch your files until `SPEC.md`, `TASKS.md`, and `TESTS.md` have real content.
 - **Repo awareness** — a ranked repo map keeps the agent oriented in large codebases.
 - **Skill discovery and local creation** — relevant skills are surfaced and loaded automatically; if discovery cannot find a fit, GedCode can write a narrow local skill under `.ged/skills/` without touching global user skills.
 - **Collaboration-safe memory direction** — shared project knowledge stays durable, while active work is moving toward per-branch `.ged/work/<branch>/` plans and protected-branch guardrails.
@@ -51,7 +51,7 @@ gedcode
 
 OpenCode still owns the terminal UI, models, providers, auth, sessions, tools, and runtime. GedCode only adds the workflow layer.
 
-## The Omni workflow
+## The Ged workflow
 
 1. **Bootstrap** — `.ged/` is seeded in your project the first time you run GedCode there.
 2. **Grill** — for change requests, clarify one question at a time until behavior, constraints, non-goals, tests, and success criteria are concrete. Use the docs-aware variant when domain terms or durable decisions should be recorded.
@@ -66,8 +66,6 @@ For the current subagent/orchestration model, see [`docs/current-orchestration-m
 GedCode's collaboration checkpoint reports the current branch, protected-branch policy, active `.ged/work/<branch-slug>/` planning directory, planning readiness, and next recommended action when starting or resuming change work.
 Use `gedcode_start_work` to deliberately create or switch to a feature branch and initialize that branch's work-memory directory; it refuses dirty checkouts by default and suggests committing, stashing, or explicitly allowing dirty work.
 PR behavior is controlled by `workflow.offerPrOnCompletion` and `workflow.autoCreatePrOnCompletion`; by default GedCode offers to open a PR when work is complete but does not create one unless asked.
-Use `gedcode_migrate_root_plan` to copy an existing non-placeholder root plan into the active branch-scoped `.ged/work/<branch-slug>/` directory while keeping root files intact for compatibility.
-
 Branch-scoped runtime state under `.ged/runtime/<branch-slug-or-root>/STATE.md` is injected into OpenCode's compaction context, so active state survives long sessions without creating a shared root-state bottleneck.
 
 Run `/improve-codebase-architecture` when you want a review-only architecture pass. GedCode will inspect docs/code and return numbered deepening opportunities, then wait for you to choose a candidate before treating any refactor as an implementation change.
@@ -131,7 +129,7 @@ If you'd rather have GedCode available in every `opencode` session, you can load
 | Mode | Isolation | When to use |
 | --- | --- | --- |
 | `gedcode` launcher (recommended) | Fully isolated config and plugin loading. | The default for almost everyone. |
-| Permanent plugin | None — GedCode becomes part of your normal OpenCode setup. | You want the Omni workflow in every `opencode` session. |
+| Permanent plugin | None — GedCode becomes part of your normal OpenCode setup. | You want the Ged workflow in every `opencode` session. |
 
 ### From an GedCode install
 

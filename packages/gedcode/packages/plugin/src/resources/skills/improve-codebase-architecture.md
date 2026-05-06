@@ -41,4 +41,4 @@ For each candidate include:
 - **Benefits** — expected locality, leverage, and testing improvements.
 - **Risk** — what could go wrong or why the candidate may not be worth doing.
 
-End by asking which candidate the user wants to explore. Do not refactor automatically. If the user selects a candidate, start a normal Omni change request with grill, skill-fit, spec, tasks, tests, TDD/verification, and commits.
+End by asking which candidate the user wants to explore. Do not refactor automatically. If the user selects a candidate, start a normal Ged change request with grill, skill-fit, spec, tasks, tests, TDD/verification, and commits.

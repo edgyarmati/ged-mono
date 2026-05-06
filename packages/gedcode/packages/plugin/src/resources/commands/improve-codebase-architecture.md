@@ -16,4 +16,4 @@ Return numbered deepening opportunities. For each candidate include:
 - benefits for locality, leverage, and testing
 - risk or reason not to do it
 
-Ask the user which candidate to explore. If they choose one, treat the refactor as a new Omni change request with normal grill, skill-fit, planning, testing, verification, and commits.
+Ask the user which candidate to explore. If they choose one, treat the refactor as a new Ged change request with normal grill, skill-fit, planning, testing, verification, and commits.
