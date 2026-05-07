@@ -43,9 +43,59 @@ async function writeCheckpoint(directory: string, state: Record<string, unknown>
   await writeFile(filePath, JSON.stringify(state), "utf8");
 }
 
+/** Valid v2 clarification block for tests. */
+const V2_CLARIFICATION = {
+  clarification: {
+    status: "completed",
+    source: "manual",
+    timestamp: "2026-05-07T10:00:00Z",
+    evidence: {
+      goal: "Test the checkpoint system",
+      users: "Engineers working on GedCode",
+      scope: "Unit test suite for hooks",
+      constraints: "Must pass CI and be fast",
+    },
+  },
+};
+
+/** Auto-recorded explorer for tests. */
+const V2_EXPLORER = {
+  "ged-explorer": {
+    agent: "ged-explorer",
+    source: "auto",
+    timestamp: "2026-05-07T10:05:00Z",
+    status: "completed",
+    findingCount: 3,
+  },
+};
+
+/** Auto-recorded planner for tests. */
+const V2_PLANNER = {
+  "ged-planner": {
+    agent: "ged-planner",
+    source: "auto",
+    timestamp: "2026-05-07T10:10:00Z",
+    status: "completed",
+    findingCount: 2,
+  },
+};
+
+/** Auto-recorded verifier for tests. */
+const V2_VERIFIER = {
+  "ged-verifier": {
+    agent: "ged-verifier",
+    source: "auto",
+    timestamp: "2026-05-07T11:00:00Z",
+    status: "completed",
+    findingCount: 0,
+    blocksCommit: false,
+  },
+};
+
 async function writeRealPlanning(directory: string) {
   // Write a trivial classification checkpoint so the planner guard allows writes
   await writeCheckpoint(directory, {
+    schemaVersion: 2,
     classification: "trivial",
     classificationReason: "test setup",
     planCheckpoints: {},
@@ -240,15 +290,11 @@ test("tool.execute.before rejects non-trivial git commit without verifier checkp
     await setOmniMode(dir, "on");
     await writeRealPlanning(dir);
     await writeCheckpoint(dir, {
+      schemaVersion: 2,
       classification: "non-trivial",
       classificationReason: "test setup",
-      planCheckpoints: {
-        "ged-planner": {
-          agent: "ged-planner",
-          timestamp: "2026-05-04T10:00:00Z",
-          status: "completed",
-        },
-      },
+      ...V2_CLARIFICATION,
+      planCheckpoints: { ...V2_EXPLORER, ...V2_PLANNER },
       taskCheckpoints: {},
     });
     const hook = await buildHook(dir);
@@ -269,18 +315,13 @@ test("tool.execute.before rejects non-trivial git commit without planner checkpo
     await setOmniMode(dir, "on");
     await writeRealPlanning(dir);
     await writeCheckpoint(dir, {
+      schemaVersion: 2,
       classification: "non-trivial",
       classificationReason: "test setup",
-      planCheckpoints: {},
+      ...V2_CLARIFICATION,
+      planCheckpoints: { ...V2_EXPLORER },
       taskCheckpoints: {
-        T01: {
-          "ged-verifier": {
-            agent: "ged-verifier",
-            timestamp: "2026-05-04T11:00:00Z",
-            status: "completed",
-            blocksCommit: false,
-          },
-        },
+        T01: { ...V2_VERIFIER },
       },
     });
     const hook = await buildHook(dir);
@@ -301,24 +342,13 @@ test("tool.execute.before allows git commit with non-trivial planner and verifie
     await setOmniMode(dir, "on");
     await writeRealPlanning(dir);
     await writeCheckpoint(dir, {
+      schemaVersion: 2,
       classification: "non-trivial",
       classificationReason: "test setup",
-      planCheckpoints: {
-        "ged-planner": {
-          agent: "ged-planner",
-          timestamp: "2026-05-04T10:00:00Z",
-          status: "completed",
-        },
-      },
+      ...V2_CLARIFICATION,
+      planCheckpoints: { ...V2_EXPLORER, ...V2_PLANNER },
       taskCheckpoints: {
-        T01: {
-          "ged-verifier": {
-            agent: "ged-verifier",
-            timestamp: "2026-05-04T11:00:00Z",
-            status: "completed",
-            blocksCommit: false,
-          },
-        },
+        T01: { ...V2_VERIFIER },
       },
     });
     const hook = await buildHook(dir);
@@ -336,15 +366,11 @@ test("tool.execute.before rejects git commit --amend without verifier checkpoint
     await setOmniMode(dir, "on");
     await writeRealPlanning(dir);
     await writeCheckpoint(dir, {
+      schemaVersion: 2,
       classification: "non-trivial",
       classificationReason: "test setup",
-      planCheckpoints: {
-        "ged-planner": {
-          agent: "ged-planner",
-          timestamp: "2026-05-04T10:00:00Z",
-          status: "completed",
-        },
-      },
+      ...V2_CLARIFICATION,
+      planCheckpoints: { ...V2_EXPLORER, ...V2_PLANNER },
       taskCheckpoints: {},
     });
     const hook = await buildHook(dir);
@@ -365,20 +391,17 @@ test("tool.execute.before rejects git commit when verifier reports blockers", as
     await setOmniMode(dir, "on");
     await writeRealPlanning(dir);
     await writeCheckpoint(dir, {
+      schemaVersion: 2,
       classification: "non-trivial",
       classificationReason: "test setup",
-      planCheckpoints: {
-        "ged-planner": {
-          agent: "ged-planner",
-          timestamp: "2026-05-04T10:00:00Z",
-          status: "completed",
-        },
-      },
+      ...V2_CLARIFICATION,
+      planCheckpoints: { ...V2_EXPLORER, ...V2_PLANNER },
       taskCheckpoints: {
         T01: {
           "ged-verifier": {
             agent: "ged-verifier",
-            timestamp: "2026-05-04T11:00:00Z",
+            source: "auto",
+            timestamp: "2026-05-07T11:00:00Z",
             status: "completed",
             blocksCommit: true,
           },
@@ -551,20 +574,17 @@ test("tool.execute.before blocks git commit when auto-recorded verifier has bloc
     await setOmniMode(dir, "on");
     await writeRealPlanning(dir);
     await writeCheckpoint(dir, {
+      schemaVersion: 2,
       classification: "non-trivial",
       classificationReason: "test setup",
-      planCheckpoints: {
-        "ged-planner": {
-          agent: "ged-planner",
-          timestamp: "2026-05-04T10:00:00Z",
-          status: "completed",
-        },
-      },
+      ...V2_CLARIFICATION,
+      planCheckpoints: { ...V2_EXPLORER, ...V2_PLANNER },
       taskCheckpoints: {
         auto: {
           "ged-verifier": {
             agent: "ged-verifier",
-            timestamp: "2026-05-04T11:00:00Z",
+            source: "auto",
+            timestamp: "2026-05-07T11:00:00Z",
             status: "completed",
             blocksCommit: true,
           },
@@ -589,20 +609,17 @@ test("tool.execute.before invalidates verifier checkpoint on source edit", async
     await setOmniMode(dir, "on");
     await writeRealPlanning(dir);
     await writeCheckpoint(dir, {
+      schemaVersion: 2,
       classification: "non-trivial",
       classificationReason: "test setup",
-      planCheckpoints: {
-        "ged-planner": {
-          agent: "ged-planner",
-          timestamp: "2026-05-04T10:00:00Z",
-          status: "completed",
-        },
-      },
+      ...V2_CLARIFICATION,
+      planCheckpoints: { ...V2_EXPLORER, ...V2_PLANNER },
       taskCheckpoints: {
         T01: {
           "ged-verifier": {
             agent: "ged-verifier",
-            timestamp: "2026-05-04T11:00:00Z",
+            source: "auto",
+            timestamp: "2026-05-07T11:00:00Z",
             status: "completed",
             blocksCommit: false,
             findingCount: 0,
@@ -622,20 +639,17 @@ test("tool.execute.before invalidates verifier checkpoint on source edit", async
     // Re-dispatch planner after commit consumption. Preserve the verifier
     // checkpoint from T01 so the edit below can invalidate it.
     await writeCheckpoint(dir, {
+      schemaVersion: 2,
       classification: "non-trivial",
       classificationReason: "test setup",
-      planCheckpoints: {
-        "ged-planner": {
-          agent: "ged-planner",
-          timestamp: "2026-05-04T12:00:00Z",
-          status: "completed",
-        },
-      },
+      ...V2_CLARIFICATION,
+      planCheckpoints: { ...V2_EXPLORER, ...V2_PLANNER },
       taskCheckpoints: {
         T01: {
           "ged-verifier": {
             agent: "ged-verifier",
-            timestamp: "2026-05-04T11:00:00Z",
+            source: "auto",
+            timestamp: "2026-05-07T11:00:00Z",
             status: "completed",
             blocksCommit: false,
             findingCount: 0,

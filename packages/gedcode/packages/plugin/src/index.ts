@@ -8,12 +8,16 @@ import type { Plugin } from "@opencode-ai/plugin";
 import { tool } from "@opencode-ai/plugin";
 
 import {
+  checkSchemaVersion,
   consumePlannerCheckpoint,
-  initCheckpointState,
-  isGitCommitCommand,
+  hasExplorerClearedInspection,
   hasSkipCheckpointMarker,
+  initCheckpointState,
   invalidateVerifierCheckpoints,
+  isGitCommitCommand,
+  isSafePreExplorerRead,
   parseCheckpointState,
+  recordAutoCheckpoint,
   recordCheckpoint,
   shouldAutoEscalate,
   validateAllVerifierCheckpoints,
@@ -1944,7 +1948,7 @@ export const GedCodePlugin: Plugin = async ({ directory }, options) => {
             }
             const now = new Date().toISOString();
             const isTaskLevel = subagentType === "ged-explorer" || subagentType === "ged-verifier";
-            state = recordCheckpoint(state, { agent: subagentType, timestamp: now, status: "completed", blocksCommit: subagentType === "ged-verifier" ? true : undefined }, isTaskLevel ? "auto" : undefined);
+            state = recordAutoCheckpoint(state, { agent: subagentType, timestamp: now, status: "completed", blocksCommit: subagentType === "ged-verifier" ? true : undefined }, isTaskLevel ? "auto" : undefined);
             await writeCheckpointStateFile(directory, state);
           } catch {
             // Non-fatal — don't block the subagent dispatch if recording fails
@@ -1964,6 +1968,39 @@ export const GedCodePlugin: Plugin = async ({ directory }, options) => {
       const fileMutatingTool = input.tool === "write" || input.tool === "edit";
       const gitCommitCommand = originalBashCommand ? isGitCommitCommand(originalBashCommand) : false;
       const potentiallyMutatingBash = originalBashCommand ? isPotentiallyMutatingBashCommand(originalBashCommand) || gitCommitCommand : false;
+
+      // ── Explorer-first guard: block source inspection before explorer runs ──
+      const sourceInspectingTool =
+        input.tool === "read" ||
+        input.tool === "grep" ||
+        input.tool === "find" ||
+        (input.tool === "bash" && originalBashCommand && !potentiallyMutatingBash);
+
+      if (sourceInspectingTool) {
+        const explorerState = await readCheckpointStateFile(directory);
+        if (
+          explorerState &&
+          explorerState.classification === "non-trivial" &&
+          !hasExplorerClearedInspection(explorerState)
+        ) {
+          const targetPath = extractFilePath(args);
+          if (!targetPath || !isSafePreExplorerRead(targetPath)) {
+            // Allow .md and .ged/ reads unconditionally — blocked otherwise
+            if (!targetPath || !isSafePreExplorerRead(targetPath)) {
+              // For bash commands without a file path, check if they look like source inspection
+              if (input.tool === "bash" || !targetPath) {
+                throw new Error(
+                  "GedCode explorer-first guard: for non-trivial work, source file inspection is blocked until ged-explorer has completed its initial reconnaissance. Dispatch ged-explorer via the subagent tool first. Only .md and .ged/ files may be inspected before explorer runs.",
+                );
+              }
+              throw new Error(
+                `GedCode explorer-first guard: file ${path.basename(targetPath)} is not a .md or .ged/ file. Dispatch ged-explorer before inspecting source files.`,
+              );
+            }
+          }
+        }
+      }
+
       if (fileMutatingTool) {
         const targetPath = extractFilePath(args);
         if (!targetPath) return;
@@ -2050,7 +2087,7 @@ export const GedCodePlugin: Plugin = async ({ directory }, options) => {
                 "GedCode verifier guard: you must classify the task before committing. Write your classification to .ged/runtime/<work-id>/checkpoints.json first.",
               );
             }
-            if (verifierValidation.missing.includes("ged-planner")) {
+            if (verifierValidation.missing.some((item) => item.startsWith("ged-planner"))) {
               throw new Error(
                 `GedCode verifier guard: non-trivial work requires dispatching ged-planner and ged-verifier before committing. Missing checkpoints: ${verifierValidation.missing.join(", ")}. Dispatch the missing subagents before running git commit.`,
               );
