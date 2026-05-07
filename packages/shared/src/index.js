@@ -286,7 +286,21 @@ export function hasSkipCheckpointMarker(command) {
   return /\[skip-checkpoint\]/u.test(command);
 }
 
-// ─── Auto-escalation ────────────────────────────────────────────────────
+// ─── Consumption & invalidation ────────────────────────────────────────
+
+/**
+ * Consume the planner checkpoint so the next source edit requires fresh planning.
+ * Should be called after a commit succeeds, or in the commit guard before
+ * allowing the commit through. If the commit fails, the agent must re-plan.
+ * @param {CheckpointState} state
+ * @returns {CheckpointState}
+ */
+export function consumePlannerCheckpoint(state) {
+  return {
+    ...state,
+    planCheckpoints: {},
+  };
+}
 
 /**
  * Invalidate all verifier checkpoints by setting blocksCommit: true.

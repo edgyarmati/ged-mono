@@ -612,11 +612,37 @@ test("tool.execute.before invalidates verifier checkpoint on source edit", async
     });
     const hook = await buildHook(dir);
 
-    // First, commit should be allowed since verifier is clean
+    // First, commit should be allowed since verifier is clean.
+    // After commit, the planner is consumed — next edit needs fresh planning.
     await hook(
       { tool: "bash" },
       { args: { command: "git commit -m test" } },
     );
+
+    // Re-dispatch planner after commit consumption. Preserve the verifier
+    // checkpoint from T01 so the edit below can invalidate it.
+    await writeCheckpoint(dir, {
+      classification: "non-trivial",
+      classificationReason: "test setup",
+      planCheckpoints: {
+        "ged-planner": {
+          agent: "ged-planner",
+          timestamp: "2026-05-04T12:00:00Z",
+          status: "completed",
+        },
+      },
+      taskCheckpoints: {
+        T01: {
+          "ged-verifier": {
+            agent: "ged-verifier",
+            timestamp: "2026-05-04T11:00:00Z",
+            status: "completed",
+            blocksCommit: false,
+            findingCount: 0,
+          },
+        },
+      },
+    });
 
     // Now edit a source file — this should invalidate the verifier
     await hook(

@@ -8,6 +8,7 @@ import type { Plugin } from "@opencode-ai/plugin";
 import { tool } from "@opencode-ai/plugin";
 
 import {
+  consumePlannerCheckpoint,
   initCheckpointState,
   isGitCommitCommand,
   hasSkipCheckpointMarker,
@@ -2062,6 +2063,13 @@ export const GedCodePlugin: Plugin = async ({ directory }, options) => {
             throw new Error(
               `GedCode verifier guard: non-trivial work requires dispatching ged-verifier before committing. Missing checkpoints: ${verifierValidation.missing.join(", ")}. Dispatch ged-verifier via the subagent tool for clean-context review.`,
             );
+          }
+
+          // Consume the planner checkpoint so the next source edit requires
+          // fresh planning — even for sequential slices of the same plan.
+          if (checkpointState && checkpointState.classification === "non-trivial") {
+            const consumed = consumePlannerCheckpoint(checkpointState);
+            await writeCheckpointStateFile(directory, consumed);
           }
         }
       }
