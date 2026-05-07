@@ -9,11 +9,13 @@ import {
   GED_FILES,
   OMNI_GITIGNORE,
   GedCodePlugin,
+  TRUNK_BRANCHES,
   appendSessionSummary,
   assertProtectedBranchAllowsMutation,
   activePlanningArtifactPaths,
   activeRuntimePaths,
   branchNameToWorkId,
+  buildBranchNudge,
   buildRepoMap,
   buildCollaborationCheckpoint,
   buildPullRequestBody,
@@ -461,6 +463,50 @@ test("branchNameToWorkId creates filesystem-safe branch slugs", () => {
   assert.equal(branchNameToWorkId("feature/Collaborative Memory"), "feature-collaborative-memory");
   assert.equal(branchNameToWorkId("fix..release__guard"), "fix-release-guard");
   assert.throws(() => branchNameToWorkId("///"), /cannot derive work id/);
+});
+
+test("buildBranchNudge returns nudge for main branch", () => {
+  const nudge = buildBranchNudge("main");
+  assert.match(nudge, /## ⚠️ Branch Hygiene/);
+  assert.match(nudge, /`main`/);
+  assert.match(nudge, /feature branch/);
+  assert.match(nudge, /git checkout -b/);
+});
+
+test("buildBranchNudge returns nudge for master branch", () => {
+  const nudge = buildBranchNudge("master");
+  assert.match(nudge, /## ⚠️ Branch Hygiene/);
+  assert.match(nudge, /`master`/);
+  assert.match(nudge, /feature branch/);
+});
+
+test("buildBranchNudge returns nudge for root work-id", () => {
+  const nudge = buildBranchNudge("root");
+  assert.match(nudge, /## ⚠️ Branch Hygiene/);
+  assert.match(nudge, /No named Git branch/);
+  assert.match(nudge, /`root` work namespace/);
+  assert.doesNotMatch(nudge, /feature branch/);
+});
+
+test("buildBranchNudge returns empty string for feature branches", () => {
+  assert.equal(buildBranchNudge("feat-foo"), "");
+  assert.equal(buildBranchNudge("fix-bar"), "");
+  assert.equal(buildBranchNudge("chore/update-deps"), "");
+  assert.equal(buildBranchNudge("feature/my-cool-thing"), "");
+});
+
+test("buildBranchNudge returns root nudge for null branch (detached HEAD)", () => {
+  const nudge = buildBranchNudge(null);
+  assert.match(nudge, /## ⚠️ Branch Hygiene/);
+  assert.match(nudge, /No named Git branch/);
+  assert.match(nudge, /`root` work namespace/);
+});
+
+test("TRUNK_BRANCHES contains expected values", () => {
+  assert.equal(TRUNK_BRANCHES.has("main"), true);
+  assert.equal(TRUNK_BRANCHES.has("master"), true);
+  assert.equal(TRUNK_BRANCHES.has("root"), true);
+  assert.equal(TRUNK_BRANCHES.size, 3);
 });
 
 test("validateWorkBranchName rejects unsafe branch names", () => {

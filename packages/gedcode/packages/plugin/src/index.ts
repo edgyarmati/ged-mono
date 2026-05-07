@@ -650,6 +650,40 @@ export async function readCurrentGitBranch(directory: string): Promise<string | 
   }
 }
 
+export const TRUNK_BRANCHES = new Set(["main", "master", "root"]);
+
+export function buildBranchNudge(branch: string | null): string {
+  if (branch === null) {
+    return `## ⚠️ Branch Hygiene
+
+No named Git branch was detected, so GedCode is using the \`root\` work namespace.
+Work tracking is less reliable here because unrelated detached/non-branch work can share
+\`.ged/work/root/\`. Before making substantial changes, strongly suggest to the user:
+
+    git checkout -b <descriptive-branch-name>`;
+  }
+  const workId = branchNameToWorkId(branch);
+  if (!TRUNK_BRANCHES.has(workId)) return "";
+
+  if (workId === "root") {
+    return `## ⚠️ Branch Hygiene
+
+No named Git branch was detected, so GedCode is using the \`root\` work namespace.
+Work tracking is less reliable here because unrelated detached/non-branch work can share
+\`.ged/work/root/\`. Before making substantial changes, strongly suggest to the user:
+
+    git checkout -b <descriptive-branch-name>`;
+  }
+
+  return `## ⚠️ Branch Hygiene
+
+You are on the \`${workId}\` branch. GedCode strongly recommends working in a feature branch
+so each piece of work gets a dedicated \`.ged/work/<branch>/\` namespace and the trunk
+stays clean. Before making substantial changes, suggest to the user:
+
+    git checkout -b <descriptive-branch-name>`;
+}
+
 export function isProtectedBranch(branch: string | null, settings: GedCodeSettings): boolean {
   if (!branch) return false;
   return settings.workflow.protectedBranches.includes(branch);
@@ -1835,11 +1869,17 @@ export const GedCodePlugin: Plugin = async ({ directory }, options) => {
         ? config.instructions
         : [];
 
+      const branch = await readCurrentGitBranch(directory);
+      const branchNudge = buildBranchNudge(branch);
+      const basePrompt = branchNudge
+        ? `${branchNudge}\n\n${instructionPrompt}`
+        : instructionPrompt;
+
       const gedcodeAgentConfig: OmniAgentConfig = {
         description:
           "GedCode workflow agent: clarify, spec, task, implement in bounded slices, then verify.",
         mode: "primary",
-        prompt: settings.agents.enabled ? orchestrationPrompt(instructionPrompt) : instructionPrompt,
+        prompt: settings.agents.enabled ? orchestrationPrompt(basePrompt) : basePrompt,
         ...(settings.agents.enabled
           ? { permission: { task: taskPermissionForOmniSubagents() } }
           : {}),
