@@ -12,8 +12,7 @@
       "!skills/brainstorming",
       "!skills/find-skills",
       "!skills/skill-creator",
-      "!vendor/pi-diff-review",
-      "!vendor/pi-fixed-editor"
+      "!vendor/pi-diff-review"
     ]
   },
   "formatter": {
