@@ -54,7 +54,7 @@ export function resolvePiCliPath() {
   return path.join(
     getGedPackageDir(),
     "node_modules",
-    "@mariozechner",
+    "@earendil-works",
     "pi-coding-agent",
     "dist",
     "cli.js",
