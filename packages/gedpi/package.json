@@ -37,6 +37,7 @@
     "src",
     "templates",
     "vendor/pi-diff-review",
+    "vendor/pi-powerline-footer",
     "README.md",
     "CREDITS.md"
   ],
@@ -68,7 +69,8 @@
       "./node_modules/@juanibiapina/pi-extension-settings/dist/index.js",
       "./node_modules/amp-themes/extensions/amp-editor.ts",
       "./node_modules/amp-themes/node_modules/pi-tool-display/index.ts",
-      "./node_modules/amp-themes/extensions/amp-user-message.ts"
+      "./node_modules/amp-themes/extensions/amp-user-message.ts",
+      "./vendor/pi-powerline-footer/index.ts"
     ],
     "skills": [
       "./skills",
@@ -86,8 +88,8 @@
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.131",
-    "@juanibiapina/pi-extension-settings": "^0.6.1",
     "@earendil-works/pi-coding-agent": "^0.74.0",
+    "@juanibiapina/pi-extension-settings": "^0.6.1",
     "@tintinweb/pi-subagents": "^0.7.0",
     "amp-themes": "^0.2.17",
     "glimpseui": "^0.8.0",

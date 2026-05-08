@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Features
+
+- **Restore `pi-powerline-footer`** — restore the vendored `pi-powerline-footer` extension and register it in `pi.extensions`. This brings back the fixed editor compositor that keeps the input box pinned at the bottom while scrolling chat history.
+- **Default theme `amp-gruvbox-dark-hard`** — new GedPi users (or users without a global theme preference) now default to the `amp-gruvbox-dark-hard` theme. Existing user theme choices in `~/.pi/agent/settings.json` are respected.
+
 ## 0.16.0 - 2026-05-07
 
 ### Breaking Changes
