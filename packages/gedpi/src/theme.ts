@@ -49,6 +49,16 @@ export async function ensurePiSettings(cwd: string): Promise<void> {
     modified = true;
   }
 
+  // One-time cleanup: remove the old hardcoded "dark" fallback that
+  // ensurePiSettings() used to write. It overrides the user's global
+  // theme choice (e.g. amp-gruvbox-dark-hard) because Pi resolves
+  // project-local settings first. Users who genuinely want "dark" can
+  // re-select it via /settings — it will be stored globally.
+  if (existing.theme === "dark") {
+    delete existing.theme;
+    modified = true;
+  }
+
   if (modified) {
     await mkdir(path.join(cwd, ".pi"), { recursive: true });
     writeSettings(cwd, existing);
