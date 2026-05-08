@@ -49,12 +49,6 @@ export async function ensurePiSettings(cwd: string): Promise<void> {
     modified = true;
   }
 
-  // Ensure theme fallback exists for export/share
-  if (!existing.theme) {
-    existing.theme = "dark";
-    modified = true;
-  }
-
   if (modified) {
     await mkdir(path.join(cwd, ".pi"), { recursive: true });
     writeSettings(cwd, existing);
