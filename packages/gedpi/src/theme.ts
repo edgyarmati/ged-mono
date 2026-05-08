@@ -1,6 +1,7 @@
 import { mkdirSync, readFileSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { Theme } from "@mariozechner/pi-coding-agent";
 
@@ -68,6 +69,98 @@ export const PRESETS: Record<string, GedPreset> = {
 };
 
 export const DEFAULT_PRESET = "lavender";
+
+// ── JSON theme loading ───────────────────────────────────────────
+
+interface ThemeJson {
+  name: string;
+  vars?: Record<string, string | number>;
+  colors: Record<string, string | number>;
+  export?: Record<string, string | number>;
+}
+
+const BG_COLOR_KEYS = new Set([
+  "selectedBg",
+  "userMessageBg",
+  "customMessageBg",
+  "toolPendingBg",
+  "toolSuccessBg",
+  "toolErrorBg",
+]);
+
+const THEMES_DIR = path.join(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "themes",
+);
+
+const presetCache = new Map<string, ThemeJson>();
+
+function resolveVarRefs(
+  value: string | number,
+  vars: Record<string, string | number>,
+  visited = new Set<string>(),
+): string | number {
+  if (typeof value === "number" || value === "" || value.startsWith("#")) {
+    return value;
+  }
+  if (visited.has(value)) {
+    throw new Error(`Circular variable reference detected: ${value}`);
+  }
+  if (!(value in vars)) {
+    throw new Error(`Variable reference not found: ${value}`);
+  }
+  visited.add(value);
+  const next = vars[value];
+  if (next === undefined) {
+    throw new Error(`Variable reference not found: ${value}`);
+  }
+  return resolveVarRefs(next, vars, visited);
+}
+
+function resolveThemeColors(
+  colors: Record<string, string | number>,
+  vars: Record<string, string | number> = {},
+): Record<string, string | number> {
+  const resolved: Record<string, string | number> = {};
+  for (const [key, value] of Object.entries(colors)) {
+    resolved[key] = resolveVarRefs(value, vars);
+  }
+  return resolved;
+}
+
+function splitThemeColors(resolved: Record<string, string | number>): {
+  fg: Record<string, string | number>;
+  bg: Record<string, string | number>;
+} {
+  const fg: Record<string, string | number> = {};
+  const bg: Record<string, string | number> = {};
+  for (const [key, value] of Object.entries(resolved)) {
+    if (BG_COLOR_KEYS.has(key)) {
+      bg[key] = value;
+    } else {
+      fg[key] = value;
+    }
+  }
+  return { fg, bg };
+}
+
+export function loadPresetJson(name: string): ThemeJson {
+  const cached = presetCache.get(name);
+  if (cached) {
+    return structuredClone(cached);
+  }
+  const filePath = path.join(THEMES_DIR, `${name}.json`);
+  const content = readFileSync(filePath, "utf-8");
+  const parsed = JSON.parse(content) as ThemeJson;
+  presetCache.set(name, parsed);
+  return structuredClone(parsed);
+}
+
+function createThemeFromJson(json: ThemeJson): Theme {
+  const resolved = resolveThemeColors(json.colors, json.vars);
+  const { fg, bg } = splitThemeColors(resolved);
+  return new Theme(fg, bg, "truecolor", { name: json.name });
+}
 
 // ── Runtime state ────────────────────────────────────────────────
 
@@ -213,67 +306,10 @@ export function welcome(text: string): string {
 
 /**
  * GedPi theme — dark base with brand accent.
- * Reads the active brand color so `/theme` changes propagate.
+ * Loads the active preset from JSON so `/theme` changes propagate.
  */
 export function createGedTheme(): Theme {
-  const accent = activeBrand;
-  return new Theme(
-    {
-      accent,
-      border: "#5f87ff",
-      borderAccent: accent,
-      borderMuted: "#505050",
-      success: "#b5bd68",
-      error: "#cc6666",
-      warning: "#ffff00",
-      muted: "#808080",
-      dim: "#666666",
-      text: "",
-      thinkingText: "#808080",
-      userMessageText: "",
-      customMessageText: "",
-      customMessageLabel: "#9575cd",
-      toolTitle: "",
-      toolOutput: "#808080",
-      mdHeading: "#f0c674",
-      mdLink: "#81a2be",
-      mdLinkUrl: "#666666",
-      mdCode: accent,
-      mdCodeBlock: "#b5bd68",
-      mdCodeBlockBorder: "#808080",
-      mdQuote: "#808080",
-      mdQuoteBorder: "#808080",
-      mdHr: "#808080",
-      mdListBullet: accent,
-      toolDiffAdded: "#b5bd68",
-      toolDiffRemoved: "#cc6666",
-      toolDiffContext: "#808080",
-      syntaxComment: "#6A9955",
-      syntaxKeyword: "#569CD6",
-      syntaxFunction: "#DCDCAA",
-      syntaxVariable: "#9CDCFE",
-      syntaxString: "#CE9178",
-      syntaxNumber: "#B5CEA8",
-      syntaxType: "#4EC9B0",
-      syntaxOperator: "#D4D4D4",
-      syntaxPunctuation: "#D4D4D4",
-      thinkingOff: "#505050",
-      thinkingMinimal: "#6e6e6e",
-      thinkingLow: "#5f87af",
-      thinkingMedium: "#81a2be",
-      thinkingHigh: "#b294bb",
-      thinkingXhigh: "#d183e8",
-      bashMode: "#b5bd68",
-    },
-    {
-      selectedBg: "#3a3a4a",
-      userMessageBg: "#343541",
-      customMessageBg: "#2d2838",
-      toolPendingBg: "#282832",
-      toolSuccessBg: "#283228",
-      toolErrorBg: "#3c2828",
-    },
-    "truecolor",
-    { name: "gedpi" },
-  );
+  const name = activePresetName ?? DEFAULT_PRESET;
+  const json = loadPresetJson(name);
+  return createThemeFromJson(json);
 }
