@@ -168,6 +168,7 @@ export class TerminalSplitCompositor {
   private disposed = false;
   private writing = false;
   private renderPassActive = false;
+  private renderingCluster = false;
   private scrollOffset = 0;
   private maxScrollOffset = 0;
   private lastRootLineCount = 0;
@@ -175,6 +176,7 @@ export class TerminalSplitCompositor {
   private visibleScrollableRows = 0;
   private checkingOverlay = false;
   private pendingImageCleanup = false;
+  private lastClusterHeight = 0;
 
   constructor(options: TerminalSplitCompositorOptions) {
     this.tui = options.tui;
@@ -194,8 +196,6 @@ export class TerminalSplitCompositor {
       throw new Error("[fixed-editor] Expected terminal.write(data) to exist");
     }
 
-    // Do not manage alternate screen — Pi already does that.
-    // Only manage scroll regions and optional mouse reporting.
     this.originalWrite(
       beginSynchronizedOutput()
       + (this.mouseScroll ? enableMouseReporting() : "")
@@ -306,14 +306,24 @@ export class TerminalSplitCompositor {
   }
 
   private getScrollableRows(): number {
-    if (this.disposed || this.writing || this.hasVisibleOverlay()) {
+    // CRITICAL: Never compute cluster height during a render operation.
+    // Components may access terminal.rows during their render(), which would
+    // trigger infinite recursion if we called renderCluster() here.
+    if (this.disposed || this.writing || this.renderPassActive || this.renderingCluster || this.hasVisibleOverlay()) {
       return this.getRawRows();
     }
-
     const rawRows = this.getRawRows();
-    const width = Math.max(1, this.terminal.columns || 80);
-    const cluster = this.renderCluster(width, rawRows);
-    return Math.max(1, rawRows - cluster.lines.length);
+    return Math.max(1, rawRows - this.lastClusterHeight);
+  }
+
+  private withClusterRender<T>(render: () => T): T {
+    const wasRenderingCluster = this.renderingCluster;
+    this.renderingCluster = true;
+    try {
+      return render();
+    } finally {
+      this.renderingCluster = wasRenderingCluster;
+    }
   }
 
   private renderScrollableRoot(width: number): string[] {
@@ -327,7 +337,8 @@ export class TerminalSplitCompositor {
 
     const rawRows = this.getRawRows();
     const renderWidth = Math.max(1, width);
-    const cluster = this.renderCluster(renderWidth, rawRows);
+    const cluster = this.withClusterRender(() => this.renderCluster(renderWidth, rawRows));
+    this.lastClusterHeight = cluster.lines.length;
     const scrollableRows = Math.max(1, rawRows - cluster.lines.length);
     const lines = this.originalRender(renderWidth);
     this.rootLines = lines;
@@ -395,7 +406,8 @@ export class TerminalSplitCompositor {
     if (this.disposed || this.hasVisibleOverlay()) return;
     const rawRows = this.getRawRows();
     const width = Math.max(1, this.terminal.columns || 80);
-    const cluster = this.renderCluster(width, rawRows);
+    const cluster = this.withClusterRender(() => this.renderCluster(width, rawRows));
+    this.lastClusterHeight = cluster.lines.length;
     if (cluster.lines.length === 0) return;
 
     this.originalWrite(
@@ -415,7 +427,8 @@ export class TerminalSplitCompositor {
     try {
       const rawRows = this.getRawRows();
       const width = Math.max(1, this.terminal.columns || 80);
-      const cluster = this.renderCluster(width, rawRows);
+      const cluster = this.withClusterRender(() => this.renderCluster(width, rawRows));
+      this.lastClusterHeight = cluster.lines.length;
       const reservedRows = cluster.lines.length;
 
       if (reservedRows === 0 || rawRows <= 2) {
