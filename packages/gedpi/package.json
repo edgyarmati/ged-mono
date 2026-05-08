@@ -37,6 +37,7 @@
     "src",
     "templates",
     "vendor/pi-diff-review",
+    "vendor/pi-fixed-editor",
     "README.md",
     "CREDITS.md"
   ],
@@ -68,7 +69,8 @@
       "./node_modules/@juanibiapina/pi-extension-settings/dist/index.js",
       "./node_modules/amp-themes/extensions/amp-editor.ts",
       "./node_modules/amp-themes/node_modules/pi-tool-display/index.ts",
-      "./node_modules/amp-themes/extensions/amp-user-message.ts"
+      "./node_modules/amp-themes/extensions/amp-user-message.ts",
+      "./vendor/pi-fixed-editor/index.ts"
     ],
     "skills": [
       "./skills",
