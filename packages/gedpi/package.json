@@ -37,7 +37,6 @@
     "src",
     "templates",
     "vendor/pi-diff-review",
-    "vendor/pi-powerline-footer",
     "README.md",
     "CREDITS.md"
   ],
@@ -67,7 +66,6 @@
       "./node_modules/pi-diff-review/src/index.ts",
       "./node_modules/pi-prompt-template-model/index.ts",
       "./node_modules/@juanibiapina/pi-extension-settings/dist/index.js",
-      "./vendor/pi-powerline-footer/index.ts",
       "./node_modules/amp-themes/extensions/amp-editor.ts",
       "./node_modules/amp-themes/node_modules/pi-tool-display/index.ts",
       "./node_modules/amp-themes/extensions/amp-user-message.ts"
@@ -94,7 +92,6 @@
     "amp-themes": "^0.2.17",
     "glimpseui": "^0.8.0",
     "pi-diff-review": "file:./vendor/pi-diff-review",
-    "pi-powerline-footer": "file:./vendor/pi-powerline-footer",
     "pi-prompt-template-model": "^0.9.1",
     "pi-web-access": "^0.10.7",
     "zod": "^4.4.3"
