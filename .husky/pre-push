@@ -1,5 +1,85 @@
 #!/bin/sh
 set -eu
 
-echo "Running pre-push CI-equivalent checks..."
-npm run verify
+base=""
+if git rev-parse --abbrev-ref --symbolic-full-name @{u} >/dev/null 2>&1; then
+  base="$(git merge-base HEAD @{u})"
+elif git rev-parse --verify origin/main >/dev/null 2>&1; then
+  base="$(git merge-base HEAD origin/main)"
+elif git rev-parse --verify HEAD~1 >/dev/null 2>&1; then
+  base="HEAD~1"
+fi
+
+if [ -n "$base" ]; then
+  changed="$(git diff --name-only "$base" HEAD)"
+else
+  changed="$(git diff-tree --no-commit-id --name-only -r HEAD)"
+fi
+
+if [ -z "$changed" ]; then
+  echo "No committed changes detected for pre-push checks."
+  exit 0
+fi
+
+run_gedpi=0
+run_gedcode=0
+run_full=0
+
+printf '%s\n' "$changed" | while IFS= read -r file; do
+  case "$file" in
+    packages/gedpi/*)
+      echo gedpi >> .git/pre-push-checks.tmp
+      ;;
+    packages/gedcode/*|packages/shared/*)
+      echo gedcode >> .git/pre-push-checks.tmp
+      ;;
+    package.json|package-lock.json|.husky/*|.github/workflows/*)
+      echo full >> .git/pre-push-checks.tmp
+      ;;
+  esac
+done
+
+if [ -f .git/pre-push-checks.tmp ]; then
+  checks="$(cat .git/pre-push-checks.tmp)"
+  rm -f .git/pre-push-checks.tmp
+else
+  checks=""
+fi
+
+printf '%s\n' "$checks" | grep -q '^full$' && run_full=1 || true
+printf '%s\n' "$checks" | grep -q '^gedpi$' && run_gedpi=1 || true
+printf '%s\n' "$checks" | grep -q '^gedcode$' && run_gedcode=1 || true
+
+if [ "$run_full" -eq 1 ]; then
+  echo "Running full pre-push checks for repo-level changes..."
+  npm run verify
+  exit $?
+fi
+
+if [ "$run_gedpi" -eq 0 ] && [ "$run_gedcode" -eq 0 ]; then
+  echo "Only docs/metadata changed; skipping package pre-push checks."
+  exit 0
+fi
+
+pids=""
+
+if [ "$run_gedpi" -eq 1 ]; then
+  echo "Running GedPi pre-push checks..."
+  (npm --prefix packages/gedpi run check && npm --prefix packages/gedpi run lint && npm --prefix packages/gedpi test) &
+  pids="$pids $!"
+fi
+
+if [ "$run_gedcode" -eq 1 ]; then
+  echo "Running GedCode pre-push checks..."
+  (npm -w packages/gedcode run check && npm -w packages/gedcode test) &
+  pids="$pids $!"
+fi
+
+status=0
+for pid in $pids; do
+  if ! wait "$pid"; then
+    status=1
+  fi
+done
+
+exit "$status"
