@@ -248,7 +248,7 @@ export function parseCheckpointState(raw) {
 /**
  * Check whether the planner checkpoint exists for non-trivial work.
  * v2 requirements: clarification completed + explorer (auto, completed or skipped)
- * + planner (auto, completed, outcome: "planned"). Trivial work skips all checks.
+ * + planner (auto, completed, not explicitly refused). Trivial work skips all checks.
  * Returns valid=false for null state (classification is required before edits).
  * @param {CheckpointState | null} state
  * @returns {CheckpointValidation}
@@ -302,7 +302,9 @@ export function validatePlannerCheckpoint(state) {
     }
   }
 
-  // 3. Planner must have run with auto provenance, completed, outcome: planned
+  // 3. Planner must have run with auto provenance and completed.
+  // Missing outcome remains valid for backward compatibility, but an explicit
+  // refusal means the main agent must run grill-me and re-dispatch planner.
   const plannerRecord = state.planCheckpoints["ged-planner"];
   if (!plannerRecord) {
     missing.push("ged-planner (auto-recorded)");
@@ -310,6 +312,8 @@ export function validatePlannerCheckpoint(state) {
     const plannerCheck = isValidAutoRecord(plannerRecord, "completed");
     if (!plannerCheck.valid) {
       missing.push(`ged-planner (${plannerCheck.reason})`);
+    } else if (plannerRecord.outcome === "refused-needs-clarification") {
+      missing.push("ged-planner (outcome: refused-needs-clarification)");
     }
   }
 

@@ -309,6 +309,39 @@ test("tool.execute.before rejects non-trivial git commit without verifier checkp
   });
 });
 
+test("tool.execute.before rejects non-trivial git commit after planner clarification refusal", async () => {
+  await withTempDir(async (dir) => {
+    await ensureOmniDir(dir);
+    await setOmniMode(dir, "on");
+    await writeRealPlanning(dir);
+    await writeCheckpoint(dir, {
+      schemaVersion: 2,
+      classification: "non-trivial",
+      classificationReason: "test setup",
+      ...V2_CLARIFICATION,
+      planCheckpoints: {
+        ...V2_EXPLORER,
+        "ged-planner": {
+          ...V2_PLANNER["ged-planner"],
+          outcome: "refused-needs-clarification",
+        },
+      },
+      taskCheckpoints: {
+        T01: { ...V2_VERIFIER },
+      },
+    });
+    const hook = await buildHook(dir);
+
+    await assert.rejects(
+      () => hook(
+        { tool: "bash" },
+        { args: { command: "git commit -m test" } },
+      ),
+      /refused-needs-clarification/,
+    );
+  });
+});
+
 test("tool.execute.before rejects non-trivial git commit without planner checkpoint", async () => {
   await withTempDir(async (dir) => {
     await ensureOmniDir(dir);

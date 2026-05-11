@@ -11,6 +11,7 @@
 ### Features
 
 - Refined the pre-planning workflow: `grill-me` now runs only when a non-trivial request is ambiguous, and every non-trivial task gets a skill-fit checkpoint that inventories skills, uses `find-skills` for gaps, and creates project-local skills for reusable missing expertise.
+- Planner prompts now judge semantic sufficiency across the whole handoff instead of requiring an exact `## Grill-me evidence` block.
 
 ### CI / Developer tooling
 

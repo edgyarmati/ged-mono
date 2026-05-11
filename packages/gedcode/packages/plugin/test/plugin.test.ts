@@ -952,6 +952,9 @@ test("plugin config registers optional Ged subagents and ged-agents command", as
     assert.match(String(agents["ged-explorer"]?.prompt), /comprehensive reconnaissance/);
     assert.match(String(agents["ged-explorer"]?.prompt), /breadth-first/);
     assert.match(String(agents["ged-planner"]?.prompt), /smart-friend/);
+    assert.match(String(agents["ged-planner"]?.prompt), /semantic sufficiency across the entire dispatch/);
+    assert.match(String(agents["ged-planner"]?.prompt), /Do not demand a specific ## Grill-me evidence block/);
+    assert.doesNotMatch(String(agents["ged-planner"]?.prompt), /Does the orchestrator's dispatch include a ## Grill-me evidence block/);
     assert.match(String(agents["ged-planner"]?.prompt), /rather than guessing/);
     assert.match(String(agents["ged-verifier"]?.prompt), /clean-context review/);
     assert.match(String(agents["ged-verifier"]?.prompt), /adjudicate accepted vs rejected/);
