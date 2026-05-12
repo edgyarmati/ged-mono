@@ -9,13 +9,16 @@ import { tool } from "@opencode-ai/plugin";
 
 import {
   checkSchemaVersion,
+  closeCheckpointState,
   consumePlannerCheckpoint,
   hasExplorerClearedInspection,
   hasSkipCheckpointMarker,
   initCheckpointState,
   invalidateVerifierCheckpoints,
+  isCheckpointClosed,
   isGitCommitCommand,
   isSafePreExplorerRead,
+  markCheckpointVerified,
   parseCheckpointState,
   recordAutoCheckpoint,
   recordCheckpoint,
@@ -1974,6 +1977,9 @@ export const GedCodePlugin: Plugin = async ({ directory }, options) => {
             const now = new Date().toISOString();
             const isTaskLevel = subagentType === "ged-explorer" || subagentType === "ged-verifier";
             state = recordAutoCheckpoint(state, { agent: subagentType, timestamp: now, status: "completed", blocksCommit: subagentType === "ged-verifier" ? true : undefined }, isTaskLevel ? "auto" : undefined);
+            if (subagentType === "ged-verifier" && !state.taskCheckpoints.auto?.["ged-verifier"]?.blocksCommit) {
+              state = markCheckpointVerified(state);
+            }
             await writeCheckpointStateFile(directory, state);
           } catch {
             // Non-fatal — don't block the subagent dispatch if recording fails
@@ -2005,7 +2011,7 @@ export const GedCodePlugin: Plugin = async ({ directory }, options) => {
         const explorerState = await readCheckpointStateFile(directory);
         if (
           explorerState &&
-          explorerState.classification === "non-trivial" &&
+          (explorerState.classification === "non-trivial" || isCheckpointClosed(explorerState)) &&
           !hasExplorerClearedInspection(explorerState)
         ) {
           const targetPath = extractFilePath(args);
@@ -2015,7 +2021,9 @@ export const GedCodePlugin: Plugin = async ({ directory }, options) => {
               // For bash commands without a file path, check if they look like source inspection
               if (input.tool === "bash" || !targetPath) {
                 throw new Error(
-                  "GedCode explorer-first guard: for non-trivial work, source file inspection is blocked until ged-explorer has completed its initial reconnaissance. Dispatch ged-explorer via the subagent tool first. Only .md and .ged/ files may be inspected before explorer runs.",
+                  isCheckpointClosed(explorerState)
+                    ? "GedCode checkpoint guard: previous task is closed. Classify the current task first before inspecting source files. Only .md and .ged/ files may be inspected for recovery."
+                    : "GedCode explorer-first guard: for non-trivial work, source file inspection is blocked until ged-explorer has completed its initial reconnaissance. Dispatch ged-explorer via the subagent tool first. Only .md and .ged/ files may be inspected before explorer runs.",
                 );
               }
               throw new Error(
@@ -2059,8 +2067,8 @@ export const GedCodePlugin: Plugin = async ({ directory }, options) => {
         let checkpointState = await readCheckpointStateFile(directory);
 
         // Auto-escalation: if classified as trivial but touching >1 source file,
-        // reclassify to non-trivial and persist.
-        if (checkpointState?.classification === "trivial") {
+        // reclassify to non-trivial and persist. Closed checkpoints must not be mutated.
+        if (checkpointState?.classification === "trivial" && !isCheckpointClosed(checkpointState)) {
           const targetPath = extractFilePath(args);
           if (targetPath) {
             touchedSourceFiles.add(targetPath);
@@ -2080,6 +2088,11 @@ export const GedCodePlugin: Plugin = async ({ directory }, options) => {
           if (plannerValidation.missing.includes("classification")) {
             throw new Error(
               "GedCode planner guard: you must classify the task before editing source files. Write your classification to .ged/runtime/<work-id>/checkpoints.json first.",
+            );
+          }
+          if (plannerValidation.missing.includes("checkpoint lifecycle closed")) {
+            throw new Error(
+              "GedCode planner guard: previous task is closed. Classify the current task first before editing source files.",
             );
           }
           throw new Error(
@@ -2112,6 +2125,11 @@ export const GedCodePlugin: Plugin = async ({ directory }, options) => {
                 "GedCode verifier guard: you must classify the task before committing. Write your classification to .ged/runtime/<work-id>/checkpoints.json first.",
               );
             }
+            if (verifierValidation.missing.includes("checkpoint lifecycle closed")) {
+              throw new Error(
+                "GedCode verifier guard: previous task is closed. Classify the current task first before committing.",
+              );
+            }
             if (verifierValidation.missing.some((item) => item.startsWith("ged-planner"))) {
               throw new Error(
                 `GedCode verifier guard: non-trivial work requires dispatching ged-planner and ged-verifier before committing. Missing checkpoints: ${verifierValidation.missing.join(", ")}. Dispatch the missing subagents before running git commit.`,
@@ -2129,9 +2147,11 @@ export const GedCodePlugin: Plugin = async ({ directory }, options) => {
 
           // Consume the planner checkpoint so the next source edit requires
           // fresh planning — even for sequential slices of the same plan.
-          if (checkpointState && checkpointState.classification === "non-trivial") {
-            const consumed = consumePlannerCheckpoint(checkpointState);
-            await writeCheckpointStateFile(directory, consumed);
+          if (checkpointState) {
+            const consumed = checkpointState.classification === "non-trivial"
+              ? consumePlannerCheckpoint(checkpointState)
+              : checkpointState;
+            await writeCheckpointStateFile(directory, closeCheckpointState(consumed));
           }
         }
       }
