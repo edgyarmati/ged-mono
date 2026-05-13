@@ -3,7 +3,7 @@ dist/
 .tmp/
 .pi/
 .ged/
-.gedcode/
+.gedoc/
 .DS_Store
 coverage/
 *.log

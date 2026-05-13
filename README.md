@@ -10,7 +10,7 @@ Continues and merges:
 
 | Package | Description |
 |---------|-------------|
-| [`packages/gedcode/`](packages/gedcode/) | GedCode: OpenCode plugin + launcher |
+| [`packages/gedoc/`](packages/gedoc/) | GedOC: OpenCode plugin + launcher |
 | [`packages/gedpi/`](packages/gedpi/) | GedPi: Pi plugin + brain + extensions |
 
 ## Setup

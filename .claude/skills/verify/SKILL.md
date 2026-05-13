@@ -9,7 +9,7 @@ Run the monorepo verification gate from the repository root:
 npm run verify
 ```
 
-This runs `npm run check` (TypeScript type-check) and `npm test` across both GedCode and GedPi.
+This runs `npm run check` (TypeScript type-check) and `npm test` across both GedOC and GedPi.
 
 If working only in GedPi and you need the full GedPi-specific gate (includes Biome lint + pack check):
 

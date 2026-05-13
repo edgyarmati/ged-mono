@@ -28,8 +28,8 @@ jobs:
         run: npm run verify
         working-directory: packages/gedpi
 
-  verify-gedcode:
-    name: GedCode check + test
+  verify-gedoc:
+    name: GedOC check + test
     runs-on: ubuntu-latest
 
     steps:
@@ -45,7 +45,7 @@ jobs:
         run: npm ci
 
       - name: Type-check and sync versions
-        run: npm -w packages/gedcode run check
+        run: npm -w packages/gedoc run check
 
       - name: Test
-        run: npm -w packages/gedcode test
+        run: npm -w packages/gedoc test

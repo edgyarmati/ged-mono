@@ -1,0 +1,32 @@
+{
+  "name": "gedoc",
+  "private": true,
+  "version": "0.4.0",
+  "description": "GedOC monorepo: OpenCode plugin + launcher for the Omni workflow.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/edgyarmati/ged-mono"
+  },
+  "homepage": "https://github.com/edgyarmati/ged-mono#readme",
+  "bugs": {
+    "url": "https://github.com/edgyarmati/ged-mono/issues"
+  },
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build -w @gedoc/plugin --if-present",
+    "check": "node scripts/sync-version.mjs --check && npm run check -w @gedoc/plugin -w @gedoc/launcher --if-present",
+    "setup": "./scripts/setup",
+    "sync-version": "node scripts/sync-version.mjs",
+    "test": "npm run test -w @gedoc/plugin -w @gedoc/launcher --if-present"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "typescript": "^6.0.3"
+  }
+}

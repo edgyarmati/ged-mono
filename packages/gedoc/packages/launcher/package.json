@@ -1,0 +1,29 @@
+{
+  "name": "@gedoc/launcher",
+  "version": "0.4.0",
+  "description": "Launcher that starts OpenCode with GedOC config and plugin loading.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/edgyarmati/ged-mono"
+  },
+  "homepage": "https://github.com/edgyarmati/ged-mono#readme",
+  "bugs": {
+    "url": "https://github.com/edgyarmati/ged-mono/issues"
+  },
+  "type": "module",
+  "files": [
+    "bin",
+    "src"
+  ],
+  "bin": {
+    "gedoc": "./bin/gedoc.js"
+  },
+  "scripts": {
+    "check": "node --check ./bin/gedoc.js",
+    "test": "node --test test/**/*.test.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {}
+}

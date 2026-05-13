@@ -22,7 +22,7 @@ if [ -z "$changed" ]; then
 fi
 
 run_gedpi=0
-run_gedcode=0
+run_gedoc=0
 run_full=0
 
 printf '%s\n' "$changed" | while IFS= read -r file; do
@@ -30,8 +30,8 @@ printf '%s\n' "$changed" | while IFS= read -r file; do
     packages/gedpi/*)
       echo gedpi >> .git/pre-push-checks.tmp
       ;;
-    packages/gedcode/*|packages/shared/*)
-      echo gedcode >> .git/pre-push-checks.tmp
+    packages/gedoc/*|packages/shared/*)
+      echo gedoc >> .git/pre-push-checks.tmp
       ;;
     package.json|package-lock.json|.husky/*|.github/workflows/*)
       echo full >> .git/pre-push-checks.tmp
@@ -48,7 +48,7 @@ fi
 
 printf '%s\n' "$checks" | grep -q '^full$' && run_full=1 || true
 printf '%s\n' "$checks" | grep -q '^gedpi$' && run_gedpi=1 || true
-printf '%s\n' "$checks" | grep -q '^gedcode$' && run_gedcode=1 || true
+printf '%s\n' "$checks" | grep -q '^gedoc$' && run_gedoc=1 || true
 
 if [ "$run_full" -eq 1 ]; then
   echo "Running full pre-push checks for repo-level changes..."
@@ -56,7 +56,7 @@ if [ "$run_full" -eq 1 ]; then
   exit $?
 fi
 
-if [ "$run_gedpi" -eq 0 ] && [ "$run_gedcode" -eq 0 ]; then
+if [ "$run_gedpi" -eq 0 ] && [ "$run_gedoc" -eq 0 ]; then
   echo "Only docs/metadata changed; skipping package pre-push checks."
   exit 0
 fi
@@ -69,9 +69,9 @@ if [ "$run_gedpi" -eq 1 ]; then
   pids="$pids $!"
 fi
 
-if [ "$run_gedcode" -eq 1 ]; then
-  echo "Running GedCode pre-push checks..."
-  (npm -w packages/gedcode run check && npm -w packages/gedcode test) &
+if [ "$run_gedoc" -eq 1 ]; then
+  echo "Running GedOC pre-push checks..."
+  (npm -w packages/gedoc run check && npm -w packages/gedoc test) &
   pids="$pids $!"
 fi
 

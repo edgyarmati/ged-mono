@@ -1,0 +1,143 @@
+# Changelog
+
+## Unreleased
+
+### Breaking Changes
+
+- Removed legacy root planning fallback and `gedoc_migrate_root_plan`; GedOC now requires active `.ged/work/<work-id>/SPEC.md`, `TASKS.md`, and `TESTS.md` planning files before source mutations.
+- Removed the `/ged-mode` slash command and `gedoc_set_mode` tool. Ged mode is always on for GedOC agents; toggling is no longer needed. The `gedoc_bootstrap` tool no longer accepts a `mode` argument (always boots with mode on). Stale `.ged/CONFIG.md` files with `Ged Mode: off` no longer bypass planning guards — enforcement is always active.
+- Renamed the product and all user-facing strings from "Omni" to "Ged": `OMNI_*` exports renamed to `GED_*` (with backward-compat aliases), durable `.ged/` file templates updated and expanded (added `CONTEXT-MAP.md`, `ARCHITECTURE.md`, `PATTERNS.md`, `GLOSSARY.md`), memory schema version bumped from 1 to 2.
+
+### Features
+
+- Added checkpoint task lifecycle enforcement so completed checkpoint state is closed after commit and cannot authorize later work without fresh classification.
+- Refined the pre-planning workflow: `grill-me` now runs only when a non-trivial request is ambiguous, and every non-trivial task gets a skill-fit checkpoint that inventories skills, uses `find-skills` for gaps, and creates project-local skills for reusable missing expertise.
+- Planner prompts now judge semantic sufficiency across the whole handoff instead of requiring an exact `## Grill-me evidence` block.
+
+### CI / Developer tooling
+
+- Added root Husky hooks so commits run type-check + GedPi lint, pushes run CI-equivalent verification, and commit messages are checked against the repo's conventional commit prefixes.
+
+## 0.4.0 - 2026-05-05
+
+### Features
+
+- **Hard enforcement of planner and verifier checkpoints** — write/edit to source files is now structurally blocked until ged-planner has been dispatched for non-trivial work, and git commit is blocked until ged-verifier has been dispatched. Guards are implemented in the `tool.execute.before` hook and cannot be bypassed by prompt instructions alone. Escape hatch available via `workflow.allowCheckpointBypass` setting.
+- **Shared checkpoint package** (`@ged/shared-checkpoints`) — extracted checkpoint state types, validation, git commit detection, and auto-recording into a shared package used by both GedOC and GedPi. Ensures .ged/ memory format stays interchangeable.
+- **Auto-recording of subagent dispatches** — when a Task tool dispatches ged-explorer, ged-planner, or ged-verifier, the checkpoint is automatically recorded without relying on the agent to write it manually.
+- **Mandatory subagent dispatch** — strengthened orchestration prompt from "optional checkpoints" to explicit mandatory dispatch requirements with task classification, exact tool-call formats, and enumerated skip reasons.
+- **Plugin array in generated config** — the launcher now includes `plugin: [shimPath]` in the generated `opencode.json` so the plugin activates without manual setup.
+- Added release instructions and changelog discipline rules to `AGENTS.md`.
+- Added monorepo CI workflow (`ci.yml`) running GedOC check + test on every push and PR.
+- Added monorepo release workflow (`release-gedoc.yml`) triggered by `gedoc-v*` tags.
+
+### Fixes
+
+- Fixed root `package.json` scripts to target specific workspaces instead of `--workspaces`.
+- Fixed `REPO_SLUG` in `install.sh` and `install.ps1` to point at `edgyarmati/ged-mono`.
+- Fixed download URLs in installers to use `gedoc-v*` tag prefix.
+- Fixed `bundle.sh` to resolve `@opencode-ai/plugin` via Node require instead of hardcoded `node_modules/` path.
+
+- **Project-local skill maker workflow** — when `find-skills` cannot find adequate coverage, GedOC can create a narrow local skill under `.ged/skills/` for the current project without installing global user skills.
+- **Workflow settings primitives** — GedOC now resolves protected-branch workflow policy from global `~/.gedoc/settings.json` plus optional project-local `.gedoc/settings.json` overrides and exposes the effective policy in state output.
+- **Protected-branch workflow guard** — source edits and mutating shell commands are blocked on protected branches such as `main`/`master` by default once planning is ready, unless global or project GedOC settings explicitly allow direct protected-branch changes.
+- **Branch-scoped planning path helpers** — GedOC can derive safe work IDs from git branch names and select `.ged/work/<branch-slug>/` planning paths with root planning fallback when no branch is available.
+- **Active work planning guard** — the plan-before-edit guard now prefers branch-scoped `.ged/work/<branch-slug>/SPEC.md`, `TASKS.md`, and `TESTS.md` and no longer accepts legacy root planning files.
+- **Collaboration checkpoint status** — agents can now report the current branch, protected-branch policy, active Omni work-memory path, planning readiness, and next recommended action before starting or resuming change work.
+- **Explicit start-work workflow** — added `gedoc_start_work` to create or switch to a feature branch, initialize `.ged/work/<branch-slug>/`, and refuse dirty checkouts by default with proposed safe next steps.
+- **PR completion settings and tool** — added PR workflow settings for offering or auto-creating PRs on completion plus explicit `gedoc_create_pr` support that can push the branch when needed and builds a PR body from active planning context.
+- **Branch-scoped runtime state** — runtime state and session summaries now write to `.ged/runtime/<branch-slug-or-root>/` instead of root singleton files, with runtime directories ignored by git.
+- **TDD workflow skill** — added bundled `tdd` guidance for behavior-changing slices, with active-work `TESTS.md` expectations for red-green-refactor planning and verification.
+- **Diagnose workflow skill** — added bundled bug/performance-regression guidance for reproduce, minimize, hypothesize, instrument, fix, and regression-test loops.
+- **Grill-with-docs workflow skill** — added a documentation-aware clarification variant for domain language, durable context, and ADR-worthy decisions.
+- **Architecture improvement command** — added `/improve-codebase-architecture` as a review-only workflow that surfaces deepening opportunities before any refactor begins.
+- **OpenCode runtime target update** — bumped GedOC's managed OpenCode runtime target from `1.14.25` to `1.14.30`.
+- **Single-writer subagent orchestration** — optional native subagents now emphasize read-only discovery, smart-friend planning critique, clean-context verification review, and primary-agent ownership of active-worktree writes and decisions; the legacy writer subagent role was removed.
+- **Clean-context review command** — added `/clean-context-review` to standardize blind or contract diff review, finding severity/evidence/confidence reporting, and orchestrator adjudication before commit.
+- **Current orchestration model docs** — documented how the primary agent, optional read-only subagents, clean-context review, commit flow, and intentionally unimplemented writer-subagent mode work today.
+- **Per-agent passthrough provider options** — GedOC agent settings now accept per-subagent passthrough options (e.g. `reasoningEffort`, `textVerbosity`) paired directly with the model in the `models` field. Each agent accepts either a model ID string or an object with `model` plus provider options (e.g. `{"model": "openai/gpt-5.5", "reasoningEffort": "high"}`), so options travel with the model they apply to.
+- **Mandatory enabled-subagent checkpoints** — when native subagents are enabled, non-trivial change requests now require explorer/planner/verifier checkpoints unless the agent records a skip reason, and `/ged-agents` setup/status guidance is clearer about exact model IDs and object configs.
+
+### Fixes
+
+- **Sanitize XDG_CONFIG_HOME from tool shells** — when GedOC's launcher overrides `XDG_CONFIG_HOME` for OpenCode config isolation, bash tool commands now strip that override so user CLIs like `gh` see their normal auth/config.
+- **Offer RTK install in POSIX installer** — the `install.sh` installer now offers to install RTK via Homebrew when `brew` is available, for optional bash output compression. Skipped automatically when `GEDOC_SKIP_RTK` is set or when Homebrew is not present. The Windows installer notes RTK availability.
+- **Choose launcher or plugin mode in installers** — both `install.sh` and `install.ps1` now offer an interactive choice between launcher mode (isolated, recommended) and plugin mode (integrated into existing OpenCode). Non-interactive installs can set `GEDOC_INSTALL_MODE=launcher` or `GEDOC_INSTALL_MODE=plugin`.
+- **Improved agents status output** — `/ged-agents status` now shows resolved per-agent model configs with provider options instead of raw JSON, uses compact output for update responses, and consistently uses injected settings home for all paths.
+
+### CI / Release
+
+- **Keep changelog updates with every committed change** — repository agent guidance now requires each committed slice to update `CHANGELOG.md` for the next release so release notes stay complete.
+- **Design collaboration-safe Omni memory** — documented the planned split between shared project memory, per-branch `.ged/work/<branch>/` planning, untracked runtime state, and protected-branch settings guardrails.
+
+### Tests
+
+- Added tests for `skill-maker` suggestion heuristics.
+- Added tests for workflow settings defaults, global/project override merge, invalid settings fallback, and status formatting.
+- Added tests for git branch detection, protected-branch blocking, and project settings overrides in the mutating-tool guard.
+- Added tests for branch slug generation and active `.ged/work/<branch-slug>/` planning path selection.
+- Added tests for active work planning readiness, branch-aware planning guard messages.
+- Added tests for collaboration checkpoint status output on feature and protected branches.
+- Added tests for start-work branch validation, dirty checkout guidance, branch creation, branch switching, and planning-directory initialization.
+- Added tests for PR workflow settings, PR prerequisite summaries, and PR body generation without GitHub network access.
+- Added tests for branch-scoped runtime paths, root runtime fallback, gitignore updates, and state/session writes.
+- Added tests for `tdd` bundled skill memory and suggestion heuristics.
+- Added tests for `diagnose` bundled skill memory and suggestion heuristics.
+- Added tests for `grill-with-docs` bundled skill memory and suggestion heuristics.
+- Added tests for `improve-codebase-architecture` bundled skill memory, suggestion heuristics, and command registration.
+- Added a launcher test that pins the expected managed OpenCode runtime target version.
+- Added tests that lock optional subagent prompts and orchestration instructions to the single-writer model.
+- Added tests for `/clean-context-review` command registration and commit workflow guidance.
+- Added tests for resolved agent model display with object configs, defaultModel fallback, disabled checkpoint policy, and injected settings home.
+
+---
+
+## 0.3.0
+
+### Features
+
+- **Automatic grill-me clarification** — change requests (new features, fixes, refactors, migrations) now automatically trigger a one-question-at-a-time interview until behavior, constraints, non-goals, edge cases, and success criteria are concrete enough to plan safely.
+- **Enforced skill-fit checkpoint** — after clarification, the agent judges whether bundled/project skills cover the task. If not, it uses `find-skills` to discover relevant external skills before planning. Supports removing skills from project memory when the user requests it.
+
+### Fixes
+
+- **Harden plugin workflow guardrails** — blocks mutating bash commands (shell redirections, `rm`, `cp`, `tee`, etc.) before planning artifacts exist. Replaces string-based `.ged` path matching with resolved path containment. Preserves user-managed `SKILLS.md` project notes across updates.
+- **Harden launcher install checks** — adds `--check` and `--version` flags that return without launching or installing the managed OpenCode runtime. Updates POSIX and Windows installers to use `--check` for verification instead of running the launcher.
+- **Windows-safe plugin shim imports** — generates `file://` URL import specifiers in the plugin shim so Windows absolute drive paths are valid ESM module specifiers.
+- **Write plugin `.ged` files atomically** — all plugin-generated durable/runtime files are written through an atomic rename helper that preserves existing file permissions.
+- **Sanitize generated markdown** — state, session summary, skill, repo map, and standards content is sanitized so tool inputs or imported file contents cannot inject new top-level markdown structure.
+- **Harden semver comparison** — launcher version comparison correctly handles prerelease identifiers and ignores build metadata per semver precedence rules.
+- **Reject untrusted `GEDOC_SETUP_TARGET`** — validates the env var matches `gedoc[@version]` before passing it to `npm install -g`.
+- **Reject non-semver version strings from `current.json`** — managed runtime metadata is validated against strict semver before use as a path segment.
+- **Harden `readSkill` and `importStandards`** — skill name validation refuses traversal/null-byte escapes; standards import verifies resolved paths stay under the project root.
+- **Write `opencode.json` and plugin shim atomically with 0600 perms** — launcher config writes refuse to follow symlinks and keep files private.
+
+### Performance
+
+- **Summarize repo map files concurrently** — repo map generation uses a bounded concurrency pool (16 workers) instead of sequential file reads.
+
+### CI / Release
+
+- **Gate release on `npm run check` and `npm test`** — the release workflow runs type-checking and tests before building the bundle.
+- **Publish installer scripts as release assets** — `install.sh` and `install.ps1` are uploaded alongside the tarball and `SHA256SUMS`.
+- **Verify SHA256SUMS in installers** — both POSIX and Windows installers download and verify checksums before extracting the release archive.
+- **Align release bundle documentation** — release metadata, workflow, installers, README, AGENTS, and release checklist now consistently describe the current generic JS bundle artifact.
+
+### Tests
+
+- Added tests for `tool.execute.before` write/edit guard end-to-end.
+- Added tests for mutating bash rejection, `.ged` path containment, and non-mutating bash passthrough.
+- Added tests for atomic write permission preservation.
+- Added tests for markdown sanitization and embedded fence handling.
+- Added tests for semver prerelease ordering and build metadata.
+- Added tests for `grill-me` and `find-skills` suggestion heuristics.
+- Added tests for SKILLS project notes preservation and large repo-map file skipping.
+- Added tests for launcher `--check`/`--version` non-launching behavior.
+- Added tests for Windows-safe plugin shim import specifiers.
+- Added tests for release metadata alignment with the generic JS bundle.
+
+---
+
+## 0.2.1
+
+- Initial public release: OpenCode plugin + launcher, `.ged/` durable memory, plan-before-edit guard, repo map, skill suggestion, isolated config, RTK integration.

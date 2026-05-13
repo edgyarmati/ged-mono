@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Bring GedCode's mandatory subagent checkpoints (ged-explorer, ged-planner, ged-verifier) to GedPi with both prompt-level and code-level enforcement, gated by a trivial/non-trivial classification.
+**Goal:** Bring GedOC's mandatory subagent checkpoints (ged-explorer, ged-planner, ged-verifier) to GedPi with both prompt-level and code-level enforcement, gated by a trivial/non-trivial classification.
 
-**Architecture:** The brain's system prompt gains orchestration instructions (matching GedCode's `orchestrationPrompt()` pattern) that tell the brain when and how to dispatch subagents via the `subagent` tool. A new `orchestration.ts` module tracks checkpoint state in `.ged/runtime/checkpoints.json`. The `ged-core` extension's `before_agent_start` hook conditionally injects the orchestration prompt, and a new `turn_end` hook validates that checkpoints were followed before commits.
+**Architecture:** The brain's system prompt gains orchestration instructions (matching GedOC's `orchestrationPrompt()` pattern) that tell the brain when and how to dispatch subagents via the `subagent` tool. A new `orchestration.ts` module tracks checkpoint state in `.ged/runtime/checkpoints.json`. The `ged-core` extension's `before_agent_start` hook conditionally injects the orchestration prompt, and a new `turn_end` hook validates that checkpoints were followed before commits.
 
 **Tech Stack:** TypeScript (ESM, Node 22+), Vitest, Biome, Pi extension API (`@mariozechner/pi-coding-agent`)
 
@@ -694,9 +694,9 @@ describe("brain orchestration integration", () => {
   });
 
   it("includes orchestration prompt when agents enabled", async () => {
-    await mkdir(path.join(tmpDir, ".gedcode"), { recursive: true });
+    await mkdir(path.join(tmpDir, ".gedoc"), { recursive: true });
     await writeFileAtomic(
-      path.join(tmpDir, ".gedcode", "settings.json"),
+      path.join(tmpDir, ".gedoc", "settings.json"),
       JSON.stringify({ agents: { enabled: true } }),
     );
     const suffix = await buildWorkflowPromptSuffix(tmpDir);
@@ -705,9 +705,9 @@ describe("brain orchestration integration", () => {
   });
 
   it("omits orchestration prompt when agents disabled", async () => {
-    await mkdir(path.join(tmpDir, ".gedcode"), { recursive: true });
+    await mkdir(path.join(tmpDir, ".gedoc"), { recursive: true });
     await writeFileAtomic(
-      path.join(tmpDir, ".gedcode", "settings.json"),
+      path.join(tmpDir, ".gedoc", "settings.json"),
       JSON.stringify({ agents: { enabled: false } }),
     );
     const suffix = await buildWorkflowPromptSuffix(tmpDir);
