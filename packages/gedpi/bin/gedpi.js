@@ -266,14 +266,30 @@ export function isGedEntrypointInvocation(
   }
 }
 
+function readOptionValue(args, name) {
+  const index = args.indexOf(name);
+  if (index === -1) return null;
+  return args[index + 1] ?? null;
+}
+
 if (isGedEntrypointInvocation()) {
   const args = process.argv.slice(2);
   if (args.includes("--version") || args.includes("-v")) {
     console.log(getGedpiVersion());
     process.exit(0);
   }
-  runGed(args).catch((error) => {
-    console.error(error instanceof Error ? error.message : String(error));
-    process.exit(1);
-  });
+  if (args.includes("--headless-jsonl")) {
+    const projectRoot = readOptionValue(args, "--project") ?? process.cwd();
+    import("./headless-jsonl.js")
+      .then(({ runHeadlessJsonl }) => runHeadlessJsonl({ projectRoot }))
+      .catch((error) => {
+        console.error(error instanceof Error ? error.message : String(error));
+        process.exit(1);
+      });
+  } else {
+    runGed(args).catch((error) => {
+      console.error(error instanceof Error ? error.message : String(error));
+      process.exit(1);
+    });
+  }
 }
