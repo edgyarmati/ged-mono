@@ -173,32 +173,107 @@ export async function runHeadlessJsonl({
     projectRoot,
     ts: new Date().toISOString(),
   });
+  const activeSessions = new Map();
   for await (const line of rl) {
     if (!line.trim()) continue;
     try {
       const command = JSON.parse(line);
-      if (
-        !command ||
-        typeof command !== "object" ||
-        command.type !== "snapshot.read"
-      ) {
+      if (!command || typeof command !== "object") {
         writeJsonLine(output, {
-          ...(typeof command?.id === "string" ? { id: command.id } : {}),
           type: "response.error",
           code: "GEDPI_HEADLESS_UNSUPPORTED_COMMAND",
           message: `Unsupported command: ${String(command?.type)}`,
         });
         continue;
       }
-      const commandProjectRoot =
-        typeof command.projectRoot === "string" && command.projectRoot
-          ? command.projectRoot
-          : projectRoot;
-      writeJsonLine(output, {
-        ...(typeof command.id === "string" ? { id: command.id } : {}),
-        type: "response.snapshot",
-        snapshot: await readHeadlessSnapshot(commandProjectRoot),
-      });
+      switch (command.type) {
+        case "snapshot.read": {
+          const commandProjectRoot =
+            typeof command.projectRoot === "string" && command.projectRoot
+              ? command.projectRoot
+              : projectRoot;
+          writeJsonLine(output, {
+            ...(typeof command.id === "string" ? { id: command.id } : {}),
+            type: "response.snapshot",
+            snapshot: await readHeadlessSnapshot(commandProjectRoot),
+          });
+          break;
+        }
+
+        case "session.start": {
+          const threadId = command.threadId;
+          if (typeof threadId !== "string" || !threadId) {
+            writeJsonLine(output, {
+              ...(typeof command.id === "string" ? { id: command.id } : {}),
+              type: "response.error",
+              code: "GEDPI_HEADLESS_INVALID_PARAMS",
+              message: "session.start requires a threadId string",
+            });
+            break;
+          }
+          if (activeSessions.has(threadId)) {
+            writeJsonLine(output, {
+              ...(typeof command.id === "string" ? { id: command.id } : {}),
+              type: "response.error",
+              code: "GEDPI_HEADLESS_SESSION_EXISTS",
+              message: `Session '${threadId}' already exists`,
+            });
+            break;
+          }
+          const session = {
+            threadId,
+            status: "ready",
+            runtimeMode: command.runtimeMode ?? "agent",
+            cwd: command.cwd ?? projectRoot,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+          activeSessions.set(threadId, session);
+          writeJsonLine(output, {
+            type: "event.session.started",
+            threadId,
+            session,
+          });
+          break;
+        }
+
+        case "session.stop": {
+          const threadId = command.threadId;
+          if (typeof threadId !== "string" || !threadId) {
+            writeJsonLine(output, {
+              ...(typeof command.id === "string" ? { id: command.id } : {}),
+              type: "response.error",
+              code: "GEDPI_HEADLESS_INVALID_PARAMS",
+              message: "session.stop requires a threadId string",
+            });
+            break;
+          }
+          if (!activeSessions.has(threadId)) {
+            writeJsonLine(output, {
+              ...(typeof command.id === "string" ? { id: command.id } : {}),
+              type: "response.error",
+              code: "GEDPI_HEADLESS_SESSION_NOT_FOUND",
+              message: `No active session with threadId '${threadId}'`,
+            });
+            break;
+          }
+          activeSessions.delete(threadId);
+          writeJsonLine(output, {
+            type: "event.session.exited",
+            threadId,
+          });
+          break;
+        }
+
+        default: {
+          writeJsonLine(output, {
+            ...(typeof command.id === "string" ? { id: command.id } : {}),
+            type: "response.error",
+            code: "GEDPI_HEADLESS_UNSUPPORTED_COMMAND",
+            message: `Unsupported command: ${String(command.type)}`,
+          });
+        }
+      }
     } catch (error) {
       writeJsonLine(output, {
         type: "response.error",
