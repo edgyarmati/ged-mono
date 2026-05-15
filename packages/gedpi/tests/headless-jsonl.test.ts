@@ -284,3 +284,78 @@ describe("session lifecycle", () => {
     await close();
   });
 });
+
+describe("turn lifecycle", () => {
+  it("sends a turn and receives content deltas + turn.completed", async () => {
+    const root = await fixtureProject();
+    const { messages, sendCommand, close } = createJsonlSession(root);
+
+    sendCommand({
+      id: "start-1",
+      type: "session.start",
+      threadId: "thread-turn",
+      runtimeMode: "agent",
+    });
+    await waitForMessage(messages, (m) => m.type === "event.session.started");
+
+    sendCommand({
+      id: "turn-1",
+      type: "turn.send",
+      threadId: "thread-turn",
+      input: "What files are in this project?",
+    });
+
+    await waitForMessage(
+      messages,
+      (m) => m.type === "event.turn.completed",
+      30_000,
+    );
+
+    const turnStarted = messages.find((m) => m.type === "event.turn.started");
+    expect(turnStarted).toMatchObject({
+      type: "event.turn.started",
+      threadId: "thread-turn",
+    });
+    expect(typeof (turnStarted as Record<string, unknown>)?.turnId).toBe(
+      "string",
+    );
+
+    const deltas = messages.filter((m) => m.type === "event.content.delta");
+    expect(deltas.length).toBeGreaterThan(0);
+    expect(deltas[0]).toMatchObject({
+      threadId: "thread-turn",
+      streamKind: "assistant_text",
+    });
+    expect(typeof (deltas[0] as Record<string, unknown>)?.delta).toBe("string");
+
+    const turnCompleted = messages.find(
+      (m) => m.type === "event.turn.completed",
+    );
+    expect(turnCompleted).toMatchObject({
+      type: "event.turn.completed",
+      threadId: "thread-turn",
+      state: "completed",
+    });
+
+    await close();
+  });
+
+  it("returns error for turn.send on non-existent session", async () => {
+    const root = await fixtureProject();
+    const { messages, sendCommand, close } = createJsonlSession(root);
+
+    sendCommand({
+      id: "turn-bad",
+      type: "turn.send",
+      threadId: "nonexistent",
+      input: "hello",
+    });
+    await waitForMessage(messages, (m) => m.type === "response.error");
+    expect(messages.find((m) => m.id === "turn-bad")).toMatchObject({
+      type: "response.error",
+      code: "GEDPI_HEADLESS_SESSION_NOT_FOUND",
+    });
+
+    await close();
+  });
+});

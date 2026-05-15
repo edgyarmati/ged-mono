@@ -162,6 +162,22 @@ function writeJsonLine(output, value) {
   output.write(`${JSON.stringify(value)}\n`);
 }
 
+async function handleTurn({ threadId, turnId, input, projectRoot, output }) {
+  writeJsonLine(output, {
+    type: "event.content.delta",
+    threadId,
+    turnId,
+    streamKind: "assistant_text",
+    delta: `[GedPi] Received: ${input}`,
+  });
+  writeJsonLine(output, {
+    type: "event.turn.completed",
+    threadId,
+    turnId,
+    state: "completed",
+  });
+}
+
 export async function runHeadlessJsonl({
   projectRoot,
   input = process.stdin,
@@ -236,6 +252,54 @@ export async function runHeadlessJsonl({
             threadId,
             session,
           });
+          break;
+        }
+
+        case "turn.send": {
+          const threadId = command.threadId;
+          if (!activeSessions.has(threadId)) {
+            writeJsonLine(output, {
+              ...(typeof command.id === "string" ? { id: command.id } : {}),
+              type: "response.error",
+              code: "GEDPI_HEADLESS_SESSION_NOT_FOUND",
+              message: `No active session with threadId '${threadId}'`,
+            });
+            break;
+          }
+          const session = activeSessions.get(threadId);
+          const turnId = `turn-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+          session.activeTurnId = turnId;
+          session.updatedAt = new Date().toISOString();
+
+          writeJsonLine(output, {
+            ...(typeof command.id === "string" ? { id: command.id } : {}),
+            type: "event.turn.started",
+            threadId,
+            turnId,
+          });
+
+          try {
+            await handleTurn({
+              threadId,
+              turnId,
+              input: command.input ?? "",
+              attachments: command.attachments,
+              projectRoot: session.cwd,
+              output,
+              session,
+            });
+          } catch (error) {
+            writeJsonLine(output, {
+              type: "event.turn.completed",
+              threadId,
+              turnId,
+              state: "failed",
+              errorMessage:
+                error instanceof Error ? error.message : String(error),
+            });
+          }
+
+          session.activeTurnId = undefined;
           break;
         }
 
