@@ -418,6 +418,55 @@ describe("user-input.respond", () => {
   });
 });
 
+describe("thread.read", () => {
+  it("returns thread snapshot for active session", async () => {
+    const root = await fixtureProject();
+    const { messages, sendCommand, close } = createJsonlSession(root);
+
+    sendCommand({
+      type: "session.start",
+      threadId: "t1",
+      runtimeMode: "agent",
+    });
+    await waitForMessage(messages, (m) => m.type === "event.session.started");
+
+    sendCommand({ type: "turn.send", threadId: "t1", input: "hello" });
+    await waitForMessage(messages, (m) => m.type === "event.turn.completed");
+
+    sendCommand({ id: "read-1", type: "thread.read", threadId: "t1" });
+    await waitForMessage(messages, (m) => m.type === "response.thread");
+
+    const threadSnapshot = messages.find((m) => m.type === "response.thread");
+    expect(threadSnapshot).toMatchObject({
+      id: "read-1",
+      type: "response.thread",
+      threadId: "t1",
+    });
+    expect(
+      Array.isArray((threadSnapshot as Record<string, unknown>)?.turns),
+    ).toBe(true);
+    expect(
+      ((threadSnapshot as Record<string, unknown>)?.turns as unknown[]).length,
+    ).toBeGreaterThan(0);
+
+    await close();
+  });
+
+  it("returns error for unknown threadId", async () => {
+    const root = await fixtureProject();
+    const { messages, sendCommand, close } = createJsonlSession(root);
+
+    sendCommand({ id: "read-bad", type: "thread.read", threadId: "nope" });
+    await waitForMessage(messages, (m) => m.type === "response.error");
+    expect(messages.find((m) => m.id === "read-bad")).toMatchObject({
+      type: "response.error",
+      code: "GEDPI_HEADLESS_SESSION_NOT_FOUND",
+    });
+
+    await close();
+  });
+});
+
 describe("turn.interrupt", () => {
   it("interrupts an active turn", async () => {
     const root = await fixtureProject();

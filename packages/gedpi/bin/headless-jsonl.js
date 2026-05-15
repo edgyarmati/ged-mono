@@ -246,6 +246,7 @@ export async function runHeadlessJsonl({
             updatedAt: new Date().toISOString(),
             abortController: new AbortController(),
             pendingRequests: new Map(),
+            turns: [],
           };
           activeSessions.set(threadId, session);
           writeJsonLine(output, {
@@ -280,6 +281,7 @@ export async function runHeadlessJsonl({
             turnId,
           });
 
+          let turnState = "completed";
           try {
             await handleTurn({
               threadId,
@@ -291,6 +293,7 @@ export async function runHeadlessJsonl({
               session,
             });
           } catch (error) {
+            turnState = "failed";
             writeJsonLine(output, {
               type: "event.turn.completed",
               threadId,
@@ -301,6 +304,12 @@ export async function runHeadlessJsonl({
             });
           }
 
+          session.turns.push({
+            turnId,
+            input: command.input ?? "",
+            state: turnState,
+            createdAt: new Date().toISOString(),
+          });
           session.activeTurnId = undefined;
           break;
         }
@@ -396,6 +405,27 @@ export async function runHeadlessJsonl({
             type: "event.request.resolved",
             threadId,
             requestId: command.requestId,
+          });
+          break;
+        }
+
+        case "thread.read": {
+          const threadId = command.threadId;
+          const session = activeSessions.get(threadId);
+          if (!session) {
+            writeJsonLine(output, {
+              ...(typeof command.id === "string" ? { id: command.id } : {}),
+              type: "response.error",
+              code: "GEDPI_HEADLESS_SESSION_NOT_FOUND",
+              message: `No active session with threadId '${threadId}'`,
+            });
+            break;
+          }
+          writeJsonLine(output, {
+            ...(typeof command.id === "string" ? { id: command.id } : {}),
+            type: "response.thread",
+            threadId,
+            turns: session.turns,
           });
           break;
         }
