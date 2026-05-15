@@ -314,11 +314,23 @@ Do not import t3code into `ged-mono` yet. Instead:
 ## Concrete next tasks
 
 1. Create a t3code fork branch or worktree for `GedPiDriver` experimentation.
-2. Map exact adapter interfaces in `apps/server/src/provider/Services/ProviderAdapter.ts` and the OpenCode adapter implementation.
-3. Draft GedPi headless JSONL protocol in this repo.
+2. Map exact adapter interfaces in `apps/server/src/provider/Services/ProviderAdapter.ts` and the OpenCode adapter implementation. **Done in follow-up reconnaissance.**
+3. Draft GedPi headless JSONL protocol in this repo. **Done: see `docs/plans/gedpi-headless-jsonl-protocol.md`.**
 4. Add a tiny GedPi headless proof command that can emit version/project/checkpoint state as JSONL.
 5. Implement a minimal t3code `gedpi` provider snapshot against that proof command.
 6. Reassess full fork after snapshot + one prompt round-trip.
+
+## Follow-up adapter seam evidence
+
+Additional reconnaissance confirmed the exact t3code seams for `GedPiDriver`:
+
+- `apps/server/src/provider/Services/ProviderAdapter.ts` defines the adapter contract: `startSession`, `sendTurn`, `interruptTurn`, approval/user-input responses, stop/list/has/read/rollback session methods, and `streamEvents`.
+- `apps/server/src/provider/ProviderDriver.ts` defines driver construction: `driverKind`, `metadata`, `configSchema`, `defaultConfig`, and scoped `create()` returning `ProviderInstance`.
+- `apps/server/src/provider/builtInDrivers.ts` is the server registration point.
+- `apps/web/src/components/settings/providerDriverMeta.ts` is the web settings registration point.
+- `apps/web/src/components/settings/AddProviderInstanceDialog.tsx` already has a coming-soon `piAgent` option/icon, confirming this kind of provider was anticipated.
+- `packages/contracts/src/settings.ts` has schema annotations that auto-drive provider settings forms.
+- `apps/desktop/src/ipc/DesktopIpc.ts` shows typed, schema-validated desktop IPC helpers we should reuse rather than inventing ad-hoc IPC.
 
 ## Go/no-go
 
