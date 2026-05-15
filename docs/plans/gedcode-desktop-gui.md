@@ -1,6 +1,6 @@
 # GedCode Desktop GUI Plan
 
-Status: approved direction; architecture spike complete enough to start M1 planning.
+Status: superseded as primary direction by the t3code adoption spike in `docs/plans/gedcode-t3code-adoption.md`. The clean-room Electron scaffold remains a useful fallback/prototype, but new strategic investment should validate t3code as GedCode's foundation first.
 
 ## Product goal
 
@@ -164,4 +164,4 @@ Release:
 
 ## Immediate next task
 
-Implement M1 scaffolding and read-only dashboard foundations only after confirming the Electron choice is still acceptable.
+Pause further clean-room GUI expansion and run the t3code adoption spike described in `docs/plans/gedcode-t3code-adoption.md`.
