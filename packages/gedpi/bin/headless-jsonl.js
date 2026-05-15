@@ -244,6 +244,7 @@ export async function runHeadlessJsonl({
             cwd: command.cwd ?? projectRoot,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
+            abortController: new AbortController(),
           };
           activeSessions.set(threadId, session);
           writeJsonLine(output, {
@@ -329,6 +330,24 @@ export async function runHeadlessJsonl({
             type: "event.session.exited",
             threadId,
           });
+          break;
+        }
+
+        case "turn.interrupt": {
+          const threadId = command.threadId;
+          if (!activeSessions.has(threadId)) {
+            writeJsonLine(output, {
+              ...(typeof command.id === "string" ? { id: command.id } : {}),
+              type: "response.error",
+              code: "GEDPI_HEADLESS_SESSION_NOT_FOUND",
+              message: `No active session with threadId '${threadId}'`,
+            });
+            break;
+          }
+          const session = activeSessions.get(threadId);
+          if (session.abortController) {
+            session.abortController.abort();
+          }
           break;
         }
 

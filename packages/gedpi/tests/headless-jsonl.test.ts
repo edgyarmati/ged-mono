@@ -359,3 +359,40 @@ describe("turn lifecycle", () => {
     await close();
   });
 });
+
+describe("turn.interrupt", () => {
+  it("interrupts an active turn", async () => {
+    const root = await fixtureProject();
+    const { messages, sendCommand, close } = createJsonlSession(root);
+
+    sendCommand({
+      type: "session.start",
+      threadId: "t1",
+      runtimeMode: "agent",
+    });
+    await waitForMessage(messages, (m) => m.type === "event.session.started");
+
+    sendCommand({ type: "turn.send", threadId: "t1", input: "hello" });
+    await waitForMessage(messages, (m) => m.type === "event.turn.started");
+
+    sendCommand({ id: "int-1", type: "turn.interrupt", threadId: "t1" });
+
+    await waitForMessage(messages, (m) => m.type === "event.turn.completed");
+
+    await close();
+  });
+
+  it("returns error for interrupt on non-existent session", async () => {
+    const root = await fixtureProject();
+    const { messages, sendCommand, close } = createJsonlSession(root);
+
+    sendCommand({ id: "int-bad", type: "turn.interrupt", threadId: "nope" });
+    await waitForMessage(messages, (m) => m.type === "response.error");
+    expect(messages.find((m) => m.id === "int-bad")).toMatchObject({
+      type: "response.error",
+      code: "GEDPI_HEADLESS_SESSION_NOT_FOUND",
+    });
+
+    await close();
+  });
+});
