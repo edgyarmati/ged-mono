@@ -5,14 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>GedCode</title>
     <style>
-      :root { color-scheme: dark; font-family: ui-sans-serif, system-ui, sans-serif; background: #151515; color: #f2eadf; }
+      :root {
+        color-scheme: dark;
+        font-family: ui-sans-serif, system-ui, sans-serif;
+        background: #151515;
+        color: #f2eadf;
+      }
       body { margin: 0; }
-      main { display: grid; grid-template-columns: 280px 1fr; min-height: 100vh; }
+      main { display: grid; grid-template-columns: 320px 1fr; min-height: 100vh; }
       aside { border-right: 1px solid #3a332d; padding: 20px; background: #1d1b19; }
       section { padding: 24px; }
+      button { border: 1px solid #665848; border-radius: 8px; padding: 9px 12px; color: #f2eadf; background: #332c25; cursor: pointer; }
+      button:hover { background: #453a30; }
+      .recent-project { display: block; width: 100%; margin: 8px 0; overflow: hidden; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
       .card { border: 1px solid #3a332d; border-radius: 12px; padding: 16px; margin-bottom: 16px; background: #211f1c; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
       .muted { color: #b8aa99; }
       code { color: #f7c873; }
+      ul { margin: 0; padding-left: 18px; }
+      li { margin: 6px 0; }
     </style>
   </head>
   <body>
@@ -20,13 +31,33 @@
       <aside>
         <h1>GedCode</h1>
         <p class="muted">Read-only GedPi cockpit</p>
+        <button id="open-project" type="button">Open project</button>
+        <h2>Recent projects</h2>
+        <div id="recent-projects" class="muted">No recent projects yet.</div>
       </aside>
       <section>
         <div class="card">
-          <h2>M1 dashboard scaffold</h2>
-          <p>This shell is ready for project selection and read-only <code>.ged</code> state rendering.</p>
+          <h2>Project</h2>
+          <p><strong>Path:</strong> <code id="project-path">Open a project to begin</code></p>
+          <p><strong>Work ID:</strong> <code id="work-id">—</code></p>
+          <p><strong>State:</strong> <span id="status" class="muted">No project loaded</span></p>
+        </div>
+        <div class="grid">
+          <div class="card">
+            <h2>Checkpoints</h2>
+            <ul id="checkpoints"><li>No checkpoint state loaded</li></ul>
+          </div>
+          <div class="card">
+            <h2>Active work</h2>
+            <ul id="active-work"><li>No active work loaded</li></ul>
+          </div>
+          <div class="card">
+            <h2>Durable memory</h2>
+            <ul id="durable"><li>No durable memory loaded</li></ul>
+          </div>
         </div>
       </section>
     </main>
+    <script type="module" src="./renderer.js"></script>
   </body>
 </html>
