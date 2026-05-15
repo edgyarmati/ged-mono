@@ -1,6 +1,6 @@
 # GedCode t3code GedPiDriver Proof Notes
 
-Status: snapshot bridge proof succeeded in t3code scratch checkout.
+Status: snapshot bridge proof succeeded; snapshot-only `GedPiDriver` added in t3code scratch checkout.
 
 ## Goal
 
@@ -105,6 +105,38 @@ Before running an adapted t3code app as GedCode against real projects, the fork 
 
 This proof only used t3code as a scratch process launcher and did not require launching the t3code app against user data.
 
+## Snapshot-only GedPiDriver implementation
+
+Implemented in scratch checkout only, not imported into this repo yet:
+
+- Branch: `gedcode-gedpi-driver-spike`
+- Commit: `39cbfb2 feat: add gedpi snapshot provider driver`
+
+Files changed:
+
+- `packages/contracts/src/settings.ts`
+  - adds `GedPiSettings` with `binaryPath` and `projectRoot`
+  - adds legacy `providers.gedpi` and patch schema support
+- `apps/server/src/provider/Drivers/GedPiDriver.ts`
+  - adds built-in `gedpi` provider driver
+  - spawns `binaryPath --headless-jsonl --project <projectRoot>`
+  - sends `snapshot.read`
+  - maps response into a `ServerProvider` snapshot
+  - keeps adapter and text-generation operations explicitly unsupported for now
+- `apps/server/src/provider/builtInDrivers.ts`
+  - registers `GedPiDriver`
+- `apps/web/src/components/settings/providerDriverMeta.ts`
+  - exposes GedPi in provider settings with the Pi Agent icon and a `Snapshot` badge
+
+Verification in scratch checkout:
+
+```bash
+cd /tmp/pi-github-repos/pingdotgg/t3code
+bun run build:desktop
+```
+
+Result: passed.
+
 ## Next implementation step
 
-Create an isolated t3code fork/worktree that first changes identity/storage paths to GedCode-owned paths, then add a snapshot-only `GedPiDriver` using the proof script logic.
+Launch or smoke the adapted app only after completing the remaining package/runtime identity audit, then verify the GedPi provider appears and reports the current `.ged` snapshot from this repo.
