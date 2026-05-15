@@ -180,14 +180,7 @@ async function getOrCreatePiSession(session) {
   return piSession;
 }
 
-async function handleTurn({
-  threadId,
-  turnId,
-  input,
-  projectRoot,
-  output,
-  session,
-}) {
+async function handleTurn({ threadId, turnId, input, output, session }) {
   let piSession;
   try {
     piSession = await getOrCreatePiSession(session);
