@@ -5,6 +5,12 @@ import path from "node:path";
 import { createInterface } from "node:readline/promises";
 import { promisify } from "node:util";
 
+import {
+  createAgentSession,
+  getAgentDir,
+  SessionManager,
+  SettingsManager,
+} from "@earendil-works/pi-coding-agent";
 import { parseCheckpointState } from "../src/vendor/shared-checkpoints.js";
 
 const execFileAsync = promisify(execFile);
@@ -162,19 +168,118 @@ function writeJsonLine(output, value) {
   output.write(`${JSON.stringify(value)}\n`);
 }
 
-async function handleTurn({ threadId, turnId, input, projectRoot, output }) {
-  writeJsonLine(output, {
-    type: "event.content.delta",
-    threadId,
-    turnId,
-    streamKind: "assistant_text",
-    delta: `[GedPi] Received: ${input}`,
+async function getOrCreatePiSession(session) {
+  if (session.piSession) return session.piSession;
+
+  const { session: piSession } = await createAgentSession({
+    cwd: session.cwd,
+    sessionManager: SessionManager.inMemory(session.cwd),
+    settingsManager: SettingsManager.create(session.cwd, getAgentDir()),
   });
+  session.piSession = piSession;
+  return piSession;
+}
+
+async function handleTurn({
+  threadId,
+  turnId,
+  input,
+  projectRoot,
+  output,
+  session,
+}) {
+  let piSession;
+  try {
+    piSession = await getOrCreatePiSession(session);
+  } catch (error) {
+    writeJsonLine(output, {
+      type: "event.content.delta",
+      threadId,
+      turnId,
+      streamKind: "assistant_text",
+      delta: `[GedPi] Failed to create agent session: ${error instanceof Error ? error.message : String(error)}`,
+    });
+    writeJsonLine(output, {
+      type: "event.turn.completed",
+      threadId,
+      turnId,
+      state: "failed",
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
+    return;
+  }
+
+  let resolveAgentEnd;
+  const agentDone = new Promise((resolve) => {
+    resolveAgentEnd = resolve;
+  });
+
+  const unsubscribe = piSession.subscribe((event) => {
+    if (event.type === "message_update") {
+      const sub = event.assistantMessageEvent;
+      if (sub.type === "text_delta") {
+        writeJsonLine(output, {
+          type: "event.content.delta",
+          threadId,
+          turnId,
+          streamKind: "assistant_text",
+          delta: sub.delta,
+        });
+      } else if (sub.type === "thinking_delta") {
+        writeJsonLine(output, {
+          type: "event.content.delta",
+          threadId,
+          turnId,
+          streamKind: "thinking",
+          delta: sub.delta,
+        });
+      }
+    } else if (event.type === "tool_execution_start") {
+      writeJsonLine(output, {
+        type: "event.item.tool_call.start",
+        threadId,
+        turnId,
+        toolCallId: event.toolCallId,
+        toolName: event.toolName,
+        args: event.args,
+      });
+    } else if (event.type === "tool_execution_end") {
+      writeJsonLine(output, {
+        type: "event.item.tool_call.end",
+        threadId,
+        turnId,
+        toolCallId: event.toolCallId,
+        toolName: event.toolName,
+        result: event.result,
+        isError: event.isError,
+      });
+    } else if (event.type === "agent_end") {
+      resolveAgentEnd();
+    }
+  });
+
+  let aborted = false;
+  const onAbort = () => {
+    aborted = true;
+    piSession.abort();
+  };
+  session.abortController.signal.addEventListener("abort", onAbort, {
+    once: true,
+  });
+
+  try {
+    await piSession.prompt(input);
+    await agentDone;
+  } finally {
+    unsubscribe();
+    session.abortController.signal.removeEventListener("abort", onAbort);
+  }
+
   writeJsonLine(output, {
     type: "event.turn.completed",
     threadId,
     turnId,
-    state: "completed",
+    state: aborted ? "interrupted" : "completed",
   });
 }
 
@@ -333,6 +438,10 @@ export async function runHeadlessJsonl({
               message: `No active session with threadId '${threadId}'`,
             });
             break;
+          }
+          const sess = activeSessions.get(threadId);
+          if (sess?.piSession) {
+            sess.piSession.dispose();
           }
           activeSessions.delete(threadId);
           writeJsonLine(output, {
