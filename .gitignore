@@ -11,3 +11,4 @@ coverage/
 *.swo
 *.tsbuildinfo
 Thumbs.db
+.gedcode/
