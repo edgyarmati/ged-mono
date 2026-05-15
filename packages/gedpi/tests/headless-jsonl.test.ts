@@ -104,11 +104,15 @@ function waitForMessage(
   timeoutMs = 5000,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
+    let handle: ReturnType<typeof setTimeout>;
     const check = () => {
-      if (messages.some(predicate)) return resolve();
+      if (messages.some(predicate)) {
+        clearTimeout(handle);
+        return resolve();
+      }
       if (timeoutMs <= 0) return reject(new Error("waitForMessage timed out"));
       timeoutMs -= 50;
-      setTimeout(check, 50);
+      handle = setTimeout(check, 50);
     };
     check();
   });
@@ -205,7 +209,7 @@ describe("session lifecycle", () => {
         .status,
     ).toBe("ready");
 
-    close();
+    await close();
   });
 
   it("stops a session and returns session.exited event", async () => {
@@ -232,7 +236,7 @@ describe("session lifecycle", () => {
       threadId: "thread-abc",
     });
 
-    close();
+    await close();
   });
 
   it("returns error for session.stop on unknown threadId", async () => {
@@ -250,6 +254,33 @@ describe("session lifecycle", () => {
       code: "GEDPI_HEADLESS_SESSION_NOT_FOUND",
     });
 
-    close();
+    await close();
+  });
+
+  it("returns error for duplicate session.start", async () => {
+    const root = await fixtureProject();
+    const { messages, sendCommand, close } = createJsonlSession(root);
+
+    sendCommand({
+      id: "start-1",
+      type: "session.start",
+      threadId: "thread-dup",
+      runtimeMode: "agent",
+    });
+    await waitForMessage(messages, (m) => m.type === "event.session.started");
+
+    sendCommand({
+      id: "start-2",
+      type: "session.start",
+      threadId: "thread-dup",
+      runtimeMode: "agent",
+    });
+    await waitForMessage(messages, (m) => m.type === "response.error");
+    expect(messages.find((m) => m.id === "start-2")).toMatchObject({
+      type: "response.error",
+      code: "GEDPI_HEADLESS_SESSION_EXISTS",
+    });
+
+    await close();
   });
 });

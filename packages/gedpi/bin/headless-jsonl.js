@@ -180,6 +180,7 @@ export async function runHeadlessJsonl({
       const command = JSON.parse(line);
       if (!command || typeof command !== "object") {
         writeJsonLine(output, {
+          ...(typeof command?.id === "string" ? { id: command.id } : {}),
           type: "response.error",
           code: "GEDPI_HEADLESS_UNSUPPORTED_COMMAND",
           message: `Unsupported command: ${String(command?.type)}`,
@@ -230,6 +231,7 @@ export async function runHeadlessJsonl({
           };
           activeSessions.set(threadId, session);
           writeJsonLine(output, {
+            ...(typeof command.id === "string" ? { id: command.id } : {}),
             type: "event.session.started",
             threadId,
             session,
@@ -259,6 +261,7 @@ export async function runHeadlessJsonl({
           }
           activeSessions.delete(threadId);
           writeJsonLine(output, {
+            ...(typeof command.id === "string" ? { id: command.id } : {}),
             type: "event.session.exited",
             threadId,
           });
