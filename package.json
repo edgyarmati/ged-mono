@@ -15,14 +15,13 @@
   "workspaces": [
     "packages/shared",
     "packages/gedoc",
-    "packages/gedoc/packages/*",
-    "packages/gedcode"
+    "packages/gedoc/packages/*"
   ],
   "scripts": {
     "build": "npm run build --workspaces --if-present",
     "check": "npm run check --workspaces --if-present && npm run check --prefix packages/gedpi",
     "test": "npm run test --workspaces --if-present && npm run test --prefix packages/gedpi",
-    "verify": "npm --prefix packages/gedpi run verify && npm -w packages/gedoc run check && npm -w packages/gedoc test && npm -w packages/gedcode run check && npm -w packages/gedcode test",
+    "verify": "npm --prefix packages/gedpi run verify && npm -w packages/gedoc run check && npm -w packages/gedoc test",
     "prepare": "husky .husky"
   },
   "engines": {
