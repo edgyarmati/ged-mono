@@ -360,6 +360,64 @@ describe("turn lifecycle", () => {
   });
 });
 
+describe("request.respond", () => {
+  it("returns error when no pending request matches", async () => {
+    const root = await fixtureProject();
+    const { messages, sendCommand, close } = createJsonlSession(root);
+
+    sendCommand({
+      type: "session.start",
+      threadId: "t1",
+      runtimeMode: "agent",
+    });
+    await waitForMessage(messages, (m) => m.type === "event.session.started");
+
+    sendCommand({
+      id: "resp-1",
+      type: "request.respond",
+      threadId: "t1",
+      requestId: "nonexistent",
+      decision: "approve",
+    });
+    await waitForMessage(messages, (m) => m.type === "response.error");
+    expect(messages.find((m) => m.id === "resp-1")).toMatchObject({
+      type: "response.error",
+      code: "GEDPI_HEADLESS_REQUEST_NOT_FOUND",
+    });
+
+    await close();
+  });
+});
+
+describe("user-input.respond", () => {
+  it("returns error when no pending request matches", async () => {
+    const root = await fixtureProject();
+    const { messages, sendCommand, close } = createJsonlSession(root);
+
+    sendCommand({
+      type: "session.start",
+      threadId: "t1",
+      runtimeMode: "agent",
+    });
+    await waitForMessage(messages, (m) => m.type === "event.session.started");
+
+    sendCommand({
+      id: "uir-1",
+      type: "user-input.respond",
+      threadId: "t1",
+      requestId: "nonexistent",
+      answers: {},
+    });
+    await waitForMessage(messages, (m) => m.type === "response.error");
+    expect(messages.find((m) => m.id === "uir-1")).toMatchObject({
+      type: "response.error",
+      code: "GEDPI_HEADLESS_REQUEST_NOT_FOUND",
+    });
+
+    await close();
+  });
+});
+
 describe("turn.interrupt", () => {
   it("interrupts an active turn", async () => {
     const root = await fixtureProject();

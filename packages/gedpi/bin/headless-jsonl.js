@@ -245,6 +245,7 @@ export async function runHeadlessJsonl({
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             abortController: new AbortController(),
+            pendingRequests: new Map(),
           };
           activeSessions.set(threadId, session);
           writeJsonLine(output, {
@@ -329,6 +330,72 @@ export async function runHeadlessJsonl({
             ...(typeof command.id === "string" ? { id: command.id } : {}),
             type: "event.session.exited",
             threadId,
+          });
+          break;
+        }
+
+        case "request.respond": {
+          const threadId = command.threadId;
+          const session = activeSessions.get(threadId);
+          if (!session) {
+            writeJsonLine(output, {
+              ...(typeof command.id === "string" ? { id: command.id } : {}),
+              type: "response.error",
+              code: "GEDPI_HEADLESS_SESSION_NOT_FOUND",
+              message: `No active session with threadId '${threadId}'`,
+            });
+            break;
+          }
+          const pending = session.pendingRequests?.get(command.requestId);
+          if (!pending) {
+            writeJsonLine(output, {
+              ...(typeof command.id === "string" ? { id: command.id } : {}),
+              type: "response.error",
+              code: "GEDPI_HEADLESS_REQUEST_NOT_FOUND",
+              message: `No pending request '${command.requestId}' in session '${threadId}'`,
+            });
+            break;
+          }
+          pending.resolve(command.decision);
+          session.pendingRequests.delete(command.requestId);
+          writeJsonLine(output, {
+            ...(typeof command.id === "string" ? { id: command.id } : {}),
+            type: "event.request.resolved",
+            threadId,
+            requestId: command.requestId,
+          });
+          break;
+        }
+
+        case "user-input.respond": {
+          const threadId = command.threadId;
+          const session = activeSessions.get(threadId);
+          if (!session) {
+            writeJsonLine(output, {
+              ...(typeof command.id === "string" ? { id: command.id } : {}),
+              type: "response.error",
+              code: "GEDPI_HEADLESS_SESSION_NOT_FOUND",
+              message: `No active session with threadId '${threadId}'`,
+            });
+            break;
+          }
+          const pending = session.pendingRequests?.get(command.requestId);
+          if (!pending) {
+            writeJsonLine(output, {
+              ...(typeof command.id === "string" ? { id: command.id } : {}),
+              type: "response.error",
+              code: "GEDPI_HEADLESS_REQUEST_NOT_FOUND",
+              message: `No pending request '${command.requestId}' in session '${threadId}'`,
+            });
+            break;
+          }
+          pending.resolve(command.answers);
+          session.pendingRequests.delete(command.requestId);
+          writeJsonLine(output, {
+            ...(typeof command.id === "string" ? { id: command.id } : {}),
+            type: "event.request.resolved",
+            threadId,
+            requestId: command.requestId,
           });
           break;
         }
