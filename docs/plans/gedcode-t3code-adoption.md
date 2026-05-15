@@ -76,6 +76,18 @@ The spike should answer whether we can responsibly base GedCode on t3code.
    - Locate t3code settings surfaces.
    - Sketch UI additions for Ged subagent model settings and preferences.
 
+## Isolation requirement
+
+The user actively uses t3code. Any runnable GedCode fork/adaptation must be isolated from that setup from the start:
+
+- use GedCode app identity, app data, config, cache, database, and runtime paths
+- use `~/.gedcode` or platform-equivalent GedCode paths, not `~/.t3`
+- use `GEDCODE_*` environment variables, not `T3CODE_*`
+- do not read/write/migrate existing t3code settings unless the user explicitly asks later
+- only integrate `.gedoc/settings.json` intentionally for Ged/GedPi workflow settings
+
+This requirement must be satisfied before launching a forked/adapted app against real projects.
+
 ## Non-goals for the spike
 
 - Do not fully import t3code into this repo yet.
