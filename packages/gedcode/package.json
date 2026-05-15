@@ -1,0 +1,27 @@
+{
+  "name": "gedcode",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Desktop GUI cockpit for GedPi workflows.",
+  "type": "module",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "dev": "npm run build && electron .",
+    "start": "electron .",
+    "test": "vitest run --pool=forks --maxWorkers=1"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@ged/shared-checkpoints": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "electron": "^39.2.4",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.5"
+  }
+}
