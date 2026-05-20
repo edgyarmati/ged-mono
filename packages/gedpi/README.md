@@ -94,6 +94,7 @@ GedPi bundles [Glimpse](https://github.com/HazAT/glimpse) for native micro-UI wi
 | `/push` | Push the current branch, with automatic recovery flow if the first push fails |
 | `/settings` | Open Pi settings, including bundled theme selection such as `midnight` and `amp-themes` themes |
 | `/update` | Check for GedPi updates |
+| `/grill-me` | Start an explicit one-question-at-a-time clarification session, or record why clarification is skipped as sufficient |
 | `/rtk` | Install RTK and check Ged's automatic bash-side RTK routing (status, install) |
 | `/ged-agents` | Configure optional read-only Ged subagents (status, setup, on, off) |
 | `/ged-settings` | Configure workflow preferences, including draft-plan review: no extra review, chat approval, or visual approval (Glimpse preferred, browser fallback) |

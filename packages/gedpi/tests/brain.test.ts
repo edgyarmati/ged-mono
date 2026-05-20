@@ -75,7 +75,9 @@ describe("Ged brain runtime", () => {
     });
 
     expect(prompt).toContain("GedPi Single-Brain Mode");
-    expect(prompt).toContain("use grill-me in chat");
+    expect(prompt).toContain("grill-me: needed");
+    expect(prompt).toContain("grill-me: skipped; reason:");
+    expect(prompt).toContain("grill-with-docs");
     expect(prompt).toContain(
       "Do not dispatch ged-planner before this first-pass clarification/sufficiency check",
     );

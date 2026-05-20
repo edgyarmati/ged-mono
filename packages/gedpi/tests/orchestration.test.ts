@@ -508,6 +508,61 @@ describe("checkpoint validation", () => {
     expect(result.missing).toContain("clarification.evidence.constraints");
   });
 
+  it("plan validation passes when clarification is skipped as sufficient with reason", () => {
+    let state: CheckpointState = {
+      ...initCheckpointState("non-trivial", "Clear feature request"),
+      clarification: {
+        status: "skipped",
+        source: "manual",
+        timestamp: "2026-05-07T10:00:00Z",
+        sufficiency: "sufficient-from-request",
+        skipReason:
+          "The user provided goal, audience, scope, constraints, and success criteria.",
+      },
+    };
+    state = recordAutoCheckpoint(state, {
+      agent: "ged-explorer",
+      timestamp: "2026-05-07T10:05:00Z",
+      status: "completed",
+    });
+    state = recordAutoCheckpoint(state, {
+      agent: "ged-planner",
+      timestamp: "2026-05-07T10:10:00Z",
+      status: "completed",
+    });
+
+    const result = validatePlannerCheckpoint(state);
+
+    expect(result.valid).toBe(true);
+  });
+
+  it("plan validation fails when skipped clarification lacks sufficiency reason", () => {
+    let state: CheckpointState = {
+      ...initCheckpointState("non-trivial", "Clear feature request"),
+      clarification: {
+        status: "skipped",
+        source: "manual",
+        timestamp: "2026-05-07T10:00:00Z",
+      },
+    };
+    state = recordAutoCheckpoint(state, {
+      agent: "ged-explorer",
+      timestamp: "2026-05-07T10:05:00Z",
+      status: "completed",
+    });
+    state = recordAutoCheckpoint(state, {
+      agent: "ged-planner",
+      timestamp: "2026-05-07T10:10:00Z",
+      status: "completed",
+    });
+
+    const result = validatePlannerCheckpoint(state);
+
+    expect(result.valid).toBe(false);
+    expect(result.missing).toContain("clarification.sufficiency");
+    expect(result.missing).toContain("clarification.skipReason");
+  });
+
   it("plan validation passes for trivial classification", () => {
     const state = makeValidV2State("trivial");
     const result = validatePlannerCheckpoint(state);
@@ -780,6 +835,9 @@ describe("orchestration prompt", () => {
     const result = buildOrchestrationPrompt(true);
     expect(result).toContain("Before drafting a non-trivial plan");
     expect(result).toContain("main-agent sufficiency check");
+    expect(result).toContain("grill-me: needed");
+    expect(result).toContain("grill-me: skipped; reason:");
+    expect(result).toContain("grill-with-docs");
     expect(result).toContain("main-agent skill decisions");
     expect(result).toContain(
       "These are mutating actions that only you perform",
