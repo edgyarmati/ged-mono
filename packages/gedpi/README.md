@@ -110,7 +110,7 @@ GedPi always runs the full Ged workflow. There is no toggle — the agent classi
 - Ged discovers standards from files like `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, Copilot instructions, Cursor rules, Windsurf rules, and Continue rules, then asks whether to keep those standards in Ged's durable memory.
 - Ged maintains a runtime repo map in `.pi/repo-map/` so prompts include a compact ranked view of important files and symbols.
 - In Git repos, Ged ensures `.pi/` is ignored because that directory is only runtime-local Pi state.
-- Every planned or executed task checks for required skills, auto-installs matching skills into `.ged/project-skills/`, creates a project skill when none exists, records task-to-skill dependencies, and removes project skills once no open task still needs them.
+- Every planned or executed task resolves required skills: in subagent mode, `ged-explorer` performs read-only skill-fit reconnaissance; the main brain then auto-installs matching skills into `.ged/project-skills/`, creates a project skill when none exists, records task-to-skill dependencies, and removes project skills once no open task still needs them.
 
 ## Orchestration Models
 
@@ -159,11 +159,11 @@ The main brain delegates intelligence-gathering to read-only subagents. It remai
 │   ged-explorer           │              │   ged-planner            │
 │   (read-only, cheap)     │              │   (read-only)            │
 │                          │              │                          │
-│  • scout codebase        │              │  • critique plan          │
-│  • map structure         │              │  • identify edge cases    │
-│  • find patterns         │              │  • spot missing context   │
-│  • report with evidence  │              │  • require grill-me       │
-│                          │              │    evidence               │
+│  • skill-fit recon       │              │  • critique plan          │
+│  • scout codebase        │              │  • identify edge cases    │
+│  • map structure         │              │  • spot missing context   │
+│  • report with evidence  │              │  • judge semantic         │
+│                          │              │    sufficiency            │
 └──────────────────────────┘              └──────────────────────────┘
 
               ┌──────────────────────────┐

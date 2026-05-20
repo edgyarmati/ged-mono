@@ -756,11 +756,15 @@ describe("orchestration prompt", () => {
     expect(result).toContain("execute directly and skip the subagent workflow");
   });
 
-  it("names all three mandatory checkpoints", () => {
+  it("names all mandatory subagent checkpoints and explorer skill-fit reconnaissance", () => {
     const result = buildOrchestrationPrompt(true);
-    expect(result).toContain("ged-explorer");
+    expect(result).toContain(
+      "ged-explorer skill-fit reconnaissance + discovery",
+    );
     expect(result).toContain("ged-planner");
     expect(result).toContain("ged-verifier");
+    expect(result).toContain("inventory bundled/project/user skills");
+    expect(result).toContain("without installing or creating anything");
   });
 
   it("requires grill-me after planner clarification refusal", () => {
@@ -776,6 +780,10 @@ describe("orchestration prompt", () => {
     const result = buildOrchestrationPrompt(true);
     expect(result).toContain("Before drafting a non-trivial plan");
     expect(result).toContain("main-agent sufficiency check");
+    expect(result).toContain("main-agent skill decisions");
+    expect(result).toContain(
+      "These are mutating actions that only you perform",
+    );
     expect(result).toContain(
       "judges semantic sufficiency across the entire dispatch",
     );

@@ -80,7 +80,11 @@ describe("Ged brain runtime", () => {
       "Do not dispatch ged-planner before this first-pass clarification/sufficiency check",
     );
     expect(prompt).toContain("synthesize the clarification evidence");
-    expect(prompt).toContain("skill-fit checkpoint");
+    expect(prompt).toContain("skill-fit reconnaissance");
+    expect(prompt).toContain(
+      "Ask the explorer to inventory available bundled/project/user skills",
+    );
+    expect(prompt).toContain("make any main-agent skill decisions");
     expect(prompt).toContain("## Plan Review Preference");
     expect(prompt).toContain(
       "Current setting: Review with Plannotator (plannotator)",
@@ -93,7 +97,7 @@ describe("Ged brain runtime", () => {
     expect(prompt).toContain("## Commit Preference");
     expect(prompt).toContain("Current setting: ask");
     expect(prompt).toContain("ask the user whether to commit");
-    expect(prompt).toContain("use find-skills if coverage is insufficient");
+    expect(prompt).toContain("search the ecosystem with `npx skills find`");
     expect(prompt).not.toContain("interview tool");
     expect(prompt).toContain(
       "treat direct user instructions as requested Ged app/product behavior by default",

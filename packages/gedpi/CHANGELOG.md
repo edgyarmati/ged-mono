@@ -9,6 +9,7 @@
 
 ### Features
 
+- Moved subagent-enabled skill-fit reconnaissance into `ged-explorer`, keeping read-only inventory/evaluation/search out of the main brain while preserving main-agent ownership of project-skill installs and creation.
 - Added `midnight`, a selectable Amp-compatible theme with deep blue-black surfaces and cool cyan/indigo accents. The existing fresh-install default theme is unchanged.
 
 ### Fixes
