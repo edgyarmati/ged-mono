@@ -15,7 +15,7 @@
 
 ### Fixes
 
-- GedPi draft-plan review now shows the full Plannotator plan-review UI inside the native Glimpse window when available, falling back to Plannotator's browser UI and then chat approval if no visual surface can open.
+- GedPi draft-plan review now loads Plannotator's TypeScript server through `jiti` for the native Glimpse path, preventing silent browser fallback when Glimpse is available.
 
 - Plannotator plan review now works out-of-the-box on fresh installs. Added a `gedpi_plan_review` bridge tool in ged-core that uses Plannotator's event-based API instead of the `plannotator_submit_plan` tool (which gets stripped from active tools on fresh sessions). The brain, orchestration, and commit-settings prompts now reference `gedpi_plan_review` instead of the internal Plannotator tool.
 

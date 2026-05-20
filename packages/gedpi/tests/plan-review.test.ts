@@ -1,8 +1,17 @@
 import { describe, expect, test } from "vitest";
 
-import { buildGlimpsePlanReviewHtml } from "../src/plan-review.js";
+import {
+  buildGlimpsePlanReviewHtml,
+  importPlannotatorServer,
+} from "../src/plan-review.js";
 
 describe("Glimpse plan review", () => {
+  test("imports Plannotator's TypeScript server module through the production helper", async () => {
+    const server = await importPlannotatorServer();
+
+    expect(server.startPlanReviewServer).toEqual(expect.any(Function));
+  });
+
   test("renders a full Plannotator iframe wrapper with browser fallback", () => {
     const html = buildGlimpsePlanReviewHtml(
       "http://127.0.0.1:48123/?token=<unsafe>",

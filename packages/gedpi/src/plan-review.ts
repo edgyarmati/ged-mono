@@ -1,10 +1,11 @@
 import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 import type {
   ExtensionAPI,
   ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
+import { createJiti } from "jiti";
 
 const PLANNOTATOR_REQUEST_CHANNEL = "plannotator:request";
 const PLANNOTATOR_REVIEW_RESULT_CHANNEL = "plannotator:review-result";
@@ -33,6 +34,24 @@ interface PlanServerResult {
   waitForDecision: () => Promise<PlanReviewResult>;
   stop: () => void;
 }
+
+type PlannotatorServerModule = {
+  startPlanReviewServer: (options: {
+    plan: string;
+    htmlContent: string;
+    origin?: string;
+    sharingEnabled?: boolean;
+    shareBaseUrl?: string;
+    pasteApiUrl?: string;
+  }) => Promise<PlanServerResult>;
+};
+
+interface GlimpseFallbackDiagnostic {
+  phase: string;
+  message: string;
+}
+
+let lastGlimpseFallbackDiagnostic: GlimpseFallbackDiagnostic | null = null;
 
 interface GlimpseModule {
   prompt: (
@@ -82,7 +101,11 @@ export function registerPlanReviewTool(api: ExtensionAPI): void {
         feedback?: string,
       ) => ({
         content: [{ type: "text" as const, text }],
-        details: { approved, feedback },
+        details: {
+          approved,
+          feedback,
+          glimpseFallback: getLastGlimpseFallbackDiagnostic(),
+        },
       });
 
       if (!filePath?.trim()) {
@@ -108,6 +131,7 @@ export function registerPlanReviewTool(api: ExtensionAPI): void {
       }
 
       const glimpseDecision = await requestGlimpsePlanReview(planContent);
+      const glimpseFallback = getLastGlimpseFallbackDiagnostic();
       if (glimpseDecision) {
         return {
           content: [
@@ -126,6 +150,7 @@ export function registerPlanReviewTool(api: ExtensionAPI): void {
             approved: glimpseDecision.approved,
             feedback: glimpseDecision.feedback,
             surface: "glimpse",
+            glimpseFallback: null,
           },
         };
       }
@@ -176,6 +201,8 @@ export function registerPlanReviewTool(api: ExtensionAPI): void {
           details: {
             approved: true,
             feedback: decision.feedback,
+            surface: "browser",
+            glimpseFallback,
           },
         };
       }
@@ -192,6 +219,8 @@ export function registerPlanReviewTool(api: ExtensionAPI): void {
         details: {
           approved: false,
           feedback: decision.feedback,
+          surface: "browser",
+          glimpseFallback,
         },
       };
     },
@@ -201,10 +230,12 @@ export function registerPlanReviewTool(api: ExtensionAPI): void {
 export async function requestGlimpsePlanReview(
   planContent: string,
 ): Promise<PlanReviewResult | null> {
+  lastGlimpseFallbackDiagnostic = null;
   let glimpse: GlimpseModule;
   try {
     glimpse = (await import("glimpseui")) as GlimpseModule;
-  } catch {
+  } catch (err) {
+    recordGlimpseFallback("glimpse-import", err);
     return null;
   }
 
@@ -212,10 +243,16 @@ export async function requestGlimpsePlanReview(
   if (!server) return null;
 
   try {
-    const decisionPromise = server.waitForDecision().then((decision) => ({
-      type: "decision" as const,
-      decision,
-    }));
+    const decisionPromise = server
+      .waitForDecision()
+      .then((decision) => ({
+        type: "decision" as const,
+        decision,
+      }))
+      .catch((err) => {
+        recordGlimpseFallback("native-decision", err);
+        return { type: "prompt" as const, result: null };
+      });
     const promptPromise = glimpse
       .prompt(buildGlimpsePlanReviewHtml(server.url), {
         width: 1200,
@@ -231,8 +268,15 @@ export async function requestGlimpsePlanReview(
       return normalizePlanReviewResult(result.decision);
     }
 
+    recordGlimpseFallback(
+      "prompt-closed",
+      result.result?.fallback
+        ? "Reviewer requested browser fallback from Glimpse."
+        : "Glimpse prompt closed before a review decision.",
+    );
     return null;
-  } catch {
+  } catch (err) {
+    recordGlimpseFallback("glimpse-prompt", err);
     return null;
   } finally {
     setTimeout(() => server.stop(), 1500);
@@ -242,16 +286,29 @@ export async function requestGlimpsePlanReview(
 async function startNativePlanReviewServer(
   planContent: string,
 ): Promise<PlanServerResult | null> {
+  let serverModule: PlannotatorServerModule;
+  let htmlContent: string;
   try {
-    const [serverModule, htmlContent] = await Promise.all([
+    [serverModule, htmlContent] = await Promise.all([
       importPlannotatorServer(),
       readPlannotatorHtml(),
     ]);
+  } catch (err) {
+    recordGlimpseFallback("native-server-import", err);
+    return null;
+  }
 
-    const { startPlanReviewServer } = serverModule;
+  const { startPlanReviewServer } = serverModule;
 
-    if (!htmlContent.trim()) return null;
+  if (!htmlContent.trim()) {
+    recordGlimpseFallback(
+      "plannotator-html",
+      "Plannotator HTML asset is empty.",
+    );
+    return null;
+  }
 
+  try {
     return await startPlanReviewServer({
       plan: planContent,
       htmlContent,
@@ -260,36 +317,27 @@ async function startNativePlanReviewServer(
       shareBaseUrl: process.env.PLANNOTATOR_SHARE_URL || undefined,
       pasteApiUrl: process.env.PLANNOTATOR_PASTE_URL || undefined,
     });
-  } catch {
+  } catch (err) {
+    recordGlimpseFallback("native-server-start", err);
     return null;
   }
 }
 
-async function importPlannotatorServer(): Promise<{
-  startPlanReviewServer: (options: {
-    plan: string;
-    htmlContent: string;
-    origin?: string;
-    sharingEnabled?: boolean;
-    shareBaseUrl?: string;
-    pasteApiUrl?: string;
-  }) => Promise<PlanServerResult>;
-}> {
-  const dynamicImport = new Function(
-    "specifier",
-    "return import(specifier)",
-  ) as (specifier: string) => Promise<{
-    startPlanReviewServer: (options: {
-      plan: string;
-      htmlContent: string;
-      origin?: string;
-      sharingEnabled?: boolean;
-      shareBaseUrl?: string;
-      pasteApiUrl?: string;
-    }) => Promise<PlanServerResult>;
-  }>;
+export async function importPlannotatorServer(): Promise<PlannotatorServerModule> {
   const packageDir = resolvePlannotatorPackageDir();
-  return dynamicImport(pathToFileURL(resolve(packageDir, "server.ts")).href);
+  const jiti = createJiti(import.meta.url);
+  const serverModule = await jiti.import<Partial<PlannotatorServerModule>>(
+    resolve(packageDir, "server.ts"),
+    { default: true },
+  );
+
+  if (typeof serverModule.startPlanReviewServer !== "function") {
+    throw new Error(
+      "Plannotator server module does not export startPlanReviewServer.",
+    );
+  }
+
+  return serverModule as PlannotatorServerModule;
 }
 
 async function readPlannotatorHtml(): Promise<string> {
@@ -304,6 +352,25 @@ function resolvePlannotatorPackageDir(): string {
     "@plannotator/pi-extension/package.json",
   );
   return dirname(fileURLToPath(packageJson));
+}
+
+export function getLastGlimpseFallbackDiagnostic(): GlimpseFallbackDiagnostic | null {
+  return lastGlimpseFallbackDiagnostic;
+}
+
+function recordGlimpseFallback(phase: string, error: unknown): void {
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === "string"
+        ? error
+        : "Unknown error";
+  lastGlimpseFallbackDiagnostic = { phase, message };
+  if (process.env.GEDPI_DEBUG_PLAN_REVIEW === "1") {
+    console.warn(
+      `[gedpi_plan_review] Glimpse fallback at ${phase}: ${message}`,
+    );
+  }
 }
 
 function normalizePlanReviewResult(result: PlanReviewResult): PlanReviewResult {
