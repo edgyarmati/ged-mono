@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Dependencies
+
+- Removed unused direct `@anthropic-ai/claude-agent-sdk` and `zod` dependencies from GedPi.
+
+### Fixes
+
+- Removed dead GedPi extension surface: the empty `ged-memory` extension entry, no-op `ged-skills`/`ged-status` stubs, and the disabled packaged `pi-fixed-editor` vendor files.
+
 ## 0.18.1 - 2026-05-21
 
 ### Dependencies

@@ -68,8 +68,7 @@ Current deferred roadmap items remain intentional and visible in docs rather tha
 
 | Extension | What it does |
 |-----------|-------------|
-| **ged-core** | Brain workflow, header, session init, shortcuts, updater, and system prompt injection |
-| **ged-memory** | `.ged/` durable memory bootstrap |
+| **ged-core** | Brain workflow, `.ged/` durable memory bootstrap, header, session init, shortcuts, updater, and system prompt injection |
 | **glimpseui** | Native micro-UI windows and the optional floating companion widget |
 | **pi-web-access** | Web search and fetch tools for the agent |
 | **@tintinweb/pi-subagents** | Claude-style `Agent`, `get_subagent_result`, and `steer_subagent` tools for read-only Ged scouts, planners, and verifiers |
@@ -79,7 +78,6 @@ Current deferred roadmap items remain intentional and visible in docs rather tha
 | **~/.gedoc/settings.json** | GedPi workflow preferences (commit behavior, draft-plan review) via `/ged-settings` command |
 | **amp-themes** | Bundled theme files plus editor and user-message styling, selected through Pi settings; GedPi also adds the Amp-compatible `midnight` theme |
 | **pi-tool-display** | Tool display renderer bundled through `amp-themes` |
-| **pi-fixed-editor** | Keeps the input box pinned at the bottom while chat history scrolls |
 
 ### Native Micro-UI
 

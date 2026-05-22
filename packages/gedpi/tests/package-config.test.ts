@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
 import path from "node:path";
 
 import { describe, expect, test } from "vitest";
@@ -50,6 +50,43 @@ describe("package Pi configuration", () => {
       "0.19.18",
     );
     expect(packageJson.dependencies?.glimpseui).toBe("0.8.1");
+  });
+
+  test("all local Pi extension paths exist", async () => {
+    const packageJson = JSON.parse(
+      await readFile(path.join(process.cwd(), "package.json"), "utf8"),
+    ) as { pi?: { extensions?: string[] } };
+    const extensions = packageJson.pi?.extensions ?? [];
+    const localExtensions = extensions.filter(
+      (extension) =>
+        extension.startsWith("./extensions/") ||
+        extension.startsWith("./vendor/"),
+    );
+
+    await Promise.all(
+      localExtensions.map((extension) =>
+        access(path.join(process.cwd(), extension)),
+      ),
+    );
+  });
+
+  test("node_modules Pi extension paths are backed by declared dependencies", async () => {
+    const packageJson = JSON.parse(
+      await readFile(path.join(process.cwd(), "package.json"), "utf8"),
+    ) as {
+      pi?: { extensions?: string[] };
+      dependencies?: Record<string, unknown>;
+    };
+    const dependencies = packageJson.dependencies ?? {};
+    const extensions = packageJson.pi?.extensions ?? [];
+
+    for (const extension of extensions) {
+      if (!extension.startsWith("./node_modules/")) continue;
+      const withoutPrefix = extension.slice("./node_modules/".length);
+      const [first, second] = withoutPrefix.split("/");
+      const dependency = first.startsWith("@") ? `${first}/${second}` : first;
+      expect(dependencies).toHaveProperty(dependency);
+    }
   });
 
   test("Plannotator extension and skills are bundled by default", async () => {
