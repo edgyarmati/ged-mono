@@ -7,7 +7,8 @@
  * Schema v2 adds: source provenance, clarification evidence, explorer-first
  * enforcement, planner outcome tracking, and blocked/failed statuses.
  * Schema v3 adds: task lifecycle status so completed tasks cannot authorize
- * later guarded tool use on the same branch.
+ * later guarded tool use on the same branch, main-agent plan acceptance, and
+ * non-authorizing worker run audit metadata.
  */
 
 // ─── JSDoc type definitions ─────────────────────────────────────────────
@@ -17,19 +18,19 @@
  */
 
 /**
- * @typedef {"ged-explorer" | "ged-planner" | "ged-verifier"} CheckpointAgent
+ * @typedef {"ged-explorer" | "ged-planner" | "ged-plan-reviewer" | "ged-verifier" | "ged-worker"} CheckpointAgent
  */
 
 /**
- * @typedef {"ged-explorer" | "ged-planner"} PlanCheckpointAgent
+ * @typedef {"ged-explorer" | "ged-planner" | "ged-plan-reviewer"} PlanCheckpointAgent
  */
 
 /**
- * @typedef {"ged-explorer" | "ged-verifier"} TaskCheckpointAgent
+ * @typedef {"ged-explorer" | "ged-verifier" | "ged-worker"} TaskCheckpointAgent
  */
 
 /**
- * @typedef {"auto" | "manual"} CheckpointSource
+ * @typedef {"auto" | "manual" | "fallback"} CheckpointSource
  */
 
 /**
@@ -54,6 +55,43 @@
  * @property {PlannerOutcome} [outcome]
  * @property {number} [findingCount]
  * @property {boolean} [blocksCommit]
+ * @property {string} [runId]
+ * @property {string} [sliceId]
+ * @property {string} [artifactPath]
+ * @property {Record<string, unknown>} [artifactPaths]
+ * @property {string} [diffPath]
+ * @property {string} [sessionPath]
+ * @property {string} [worktreePath]
+ * @property {boolean} [worktree]
+ * @property {"foreground" | "async" | "fallback"} [sourceMode]
+ */
+
+/**
+ * @typedef {Object} PlanAcceptanceRecord
+ * @property {"accepted"} status
+ * @property {"manual" | "fallback"} source
+ * @property {string} timestamp
+ * @property {string[]} planPaths
+ * @property {string} [summary]
+ * @property {string} [skipReason]
+ */
+
+/**
+ * @typedef {Object} WorkerRunRecord
+ * @property {"ged-worker"} agent
+ * @property {string} timestamp
+ * @property {CheckpointStatus} status
+ * @property {CheckpointSource} [source]
+ * @property {string} [runId]
+ * @property {string} [taskId]
+ * @property {string} [sliceId]
+ * @property {string} [artifactPath]
+ * @property {Record<string, unknown>} [artifactPaths]
+ * @property {string} [diffPath]
+ * @property {string} [sessionPath]
+ * @property {string} [worktreePath]
+ * @property {boolean} [worktree]
+ * @property {"foreground" | "async" | "fallback"} [sourceMode]
  */
 
 /**
@@ -81,8 +119,10 @@
  * @property {TaskClassification} classification
  * @property {string} classificationReason
  * @property {ClarificationRecord} [clarification]
+ * @property {PlanAcceptanceRecord} [planAcceptance]
  * @property {Partial<Record<PlanCheckpointAgent, CheckpointRecord>>} planCheckpoints
  * @property {Record<string, Partial<Record<TaskCheckpointAgent, CheckpointRecord>>>} taskCheckpoints
+ * @property {WorkerRunRecord[]} [workerRuns]
  */
 
 /**
@@ -193,10 +233,43 @@ function isValidEvidenceField(value, fieldName) {
  * @param {"completed" | undefined} [requiredStatus]
  * @returns {{ valid: boolean, reason: string }}
  */
-function isValidAutoRecord(record, requiredStatus) {
+function hasFallbackReason(record) {
+  return (
+    typeof record?.skipReason === "string" &&
+    record.skipReason.trim().length > 0
+  );
+}
+
+/**
+ * Validate a checkpoint record has auto provenance, or an explicit fallback
+ * provenance with a reason when the role is disabled and the main agent took
+ * responsibility.
+ * @param {CheckpointRecord | undefined} record
+ * @param {"completed" | undefined} [requiredStatus]
+ * @param {{ allowFallbackSkipped?: boolean }} [options]
+ * @returns {{ valid: boolean, reason: string }}
+ */
+function isValidAutoOrFallbackRecord(record, requiredStatus, options = {}) {
   if (!record) return { valid: false, reason: "missing" };
-  if (record.source !== "auto")
-    return { valid: false, reason: "not auto-recorded" };
+  if (record.source === "fallback") {
+    if (!hasFallbackReason(record)) {
+      return { valid: false, reason: "fallback without reason" };
+    }
+    if (
+      requiredStatus &&
+      record.status !== requiredStatus &&
+      !(options.allowFallbackSkipped && record.status === "skipped")
+    ) {
+      return {
+        valid: false,
+        reason: `status is ${record.status}, not ${requiredStatus}`,
+      };
+    }
+    return { valid: true, reason: "" };
+  }
+  if (record.source !== "auto") {
+    return { valid: false, reason: "not auto-recorded or fallback" };
+  }
   if (requiredStatus && record.status !== requiredStatus)
     return {
       valid: false,
@@ -218,6 +291,55 @@ function validateClarificationEvidence(evidence) {
   for (const field of ["goal", "users", "scope", "constraints"]) {
     if (!isValidEvidenceField(evidence[field], field)) {
       missing.push(`clarification.evidence.${field}`);
+    }
+  }
+  return { valid: missing.length === 0, missing };
+}
+
+/**
+ * Validate that the main agent accepted/wrote the final plan artifacts after
+ * planner draft/fallback. This is deliberately separate from human plan-review
+ * approval and from ged-planner completion.
+ * @param {PlanAcceptanceRecord | undefined} record
+ * @param {CheckpointRecord | undefined} plannerRecord
+ * @returns {CheckpointValidation}
+ */
+function validatePlanAcceptance(record, plannerRecord) {
+  const missing = [];
+  if (!record || typeof record !== "object") {
+    return { valid: false, missing: ["planAcceptance"] };
+  }
+  if (record.status !== "accepted") missing.push("planAcceptance.status");
+  if (record.source !== "manual" && record.source !== "fallback") {
+    missing.push("planAcceptance.source");
+  }
+  const acceptanceTime = Date.parse(record.timestamp);
+  if (
+    typeof record.timestamp !== "string" ||
+    record.timestamp.trim() === "" ||
+    Number.isNaN(acceptanceTime)
+  ) {
+    missing.push("planAcceptance.timestamp");
+  }
+  const planPaths = Array.isArray(record.planPaths)
+    ? record.planPaths.filter(
+        (item) => typeof item === "string" && item.trim().length > 0,
+      )
+    : [];
+  if (planPaths.length === 0) missing.push("planAcceptance.planPaths");
+  if (
+    record.source === "fallback" &&
+    !(typeof record.skipReason === "string" && record.skipReason.trim()) &&
+    !(typeof record.summary === "string" && record.summary.trim())
+  ) {
+    missing.push("planAcceptance.fallbackReason");
+  }
+  if (plannerRecord?.timestamp) {
+    const plannerTime = Date.parse(plannerRecord.timestamp);
+    if (Number.isNaN(plannerTime)) {
+      missing.push("ged-planner.timestamp");
+    } else if (!Number.isNaN(acceptanceTime) && acceptanceTime < plannerTime) {
+      missing.push("planAcceptance.afterPlanner");
     }
   }
   return { valid: missing.length === 0, missing };
@@ -246,7 +368,8 @@ function isValidCheckpointState(value) {
     typeof obj.planCheckpoints === "object" &&
     obj.planCheckpoints !== null &&
     typeof obj.taskCheckpoints === "object" &&
-    obj.taskCheckpoints !== null
+    obj.taskCheckpoints !== null &&
+    (obj.workerRuns === undefined || Array.isArray(obj.workerRuns))
   );
 }
 
@@ -329,7 +452,10 @@ export function validatePlannerCheckpoint(state) {
   if (!explorerRecord) {
     missing.push("ged-explorer (auto-recorded)");
   } else {
-    const explorerCheck = isValidAutoRecord(explorerRecord, undefined);
+    const explorerCheck = isValidAutoOrFallbackRecord(
+      explorerRecord,
+      undefined,
+    );
     if (!explorerCheck.valid) {
       missing.push(`ged-explorer (${explorerCheck.reason})`);
     } else if (
@@ -355,13 +481,24 @@ export function validatePlannerCheckpoint(state) {
   if (!plannerRecord) {
     missing.push("ged-planner (auto-recorded)");
   } else {
-    const plannerCheck = isValidAutoRecord(plannerRecord, "completed");
+    const plannerCheck = isValidAutoOrFallbackRecord(
+      plannerRecord,
+      "completed",
+      { allowFallbackSkipped: true },
+    );
     if (!plannerCheck.valid) {
       missing.push(`ged-planner (${plannerCheck.reason})`);
     } else if (plannerRecord.outcome === "refused-needs-clarification") {
       missing.push("ged-planner (outcome: refused-needs-clarification)");
     }
   }
+
+  // 4. Main agent must accept/write final plan artifacts after planner draft or fallback.
+  const acceptanceCheck = validatePlanAcceptance(
+    state.planAcceptance,
+    plannerRecord,
+  );
+  missing.push(...acceptanceCheck.missing);
 
   return { valid: missing.length === 0, missing };
 }
@@ -399,7 +536,7 @@ export function validateVerifierCheckpoint(state, taskId) {
   if (!verifierRecord) {
     missing.push("ged-verifier");
   } else {
-    const check = isValidAutoRecord(verifierRecord, "completed");
+    const check = isValidAutoOrFallbackRecord(verifierRecord, "completed");
     if (!check.valid) {
       missing.push(`ged-verifier (${check.reason})`);
     }
@@ -442,7 +579,7 @@ export function validateAllVerifierCheckpoints(state) {
       continue;
     }
     sawVerifier = true;
-    const check = isValidAutoRecord(verifier, "completed");
+    const check = isValidAutoOrFallbackRecord(verifier, "completed");
     if (!check.valid) {
       missing.push(`ged-verifier (task ${taskId}: ${check.reason})`);
     } else if (verifier.blocksCommit) {
@@ -510,7 +647,7 @@ export function hasExplorerClearedInspection(state) {
   if (state.classification === "trivial") return true;
   const explorerRecord = state.planCheckpoints["ged-explorer"];
   if (!explorerRecord) return false;
-  const check = isValidAutoRecord(explorerRecord, undefined);
+  const check = isValidAutoOrFallbackRecord(explorerRecord, undefined);
   if (!check.valid) return false;
   return (
     explorerRecord.status === "completed" ||
@@ -550,8 +687,14 @@ export function isSafePreExplorerRead(filePath) {
  */
 export function recordCheckpoint(state, record, taskId) {
   if (isCheckpointClosed(state)) return state;
+  const withWorkerRun = (next) => {
+    if (record.agent !== "ged-worker") return next;
+    return invalidateVerifierCheckpoints(
+      recordWorkerRun(next, { taskId, ...record }),
+    );
+  };
   if (taskId) {
-    return {
+    return withWorkerRun({
       ...state,
       taskCheckpoints: {
         ...state.taskCheckpoints,
@@ -560,16 +703,16 @@ export function recordCheckpoint(state, record, taskId) {
           [record.agent]: record,
         },
       },
-    };
+    });
   }
 
-  return {
+  return withWorkerRun({
     ...state,
     planCheckpoints: {
       ...state.planCheckpoints,
       [record.agent]: record,
     },
-  };
+  });
 }
 
 /**
@@ -586,6 +729,34 @@ export function recordAutoCheckpoint(state, record, taskId) {
 }
 
 /**
+ * Record main-agent acceptance of final plan artifacts.
+ * @param {CheckpointState} state
+ * @param {PlanAcceptanceRecord} record
+ * @returns {CheckpointState}
+ */
+export function recordPlanAcceptance(state, record) {
+  if (isCheckpointClosed(state)) return state;
+  return { ...state, planAcceptance: record };
+}
+
+/**
+ * Append a non-authorizing worker run audit record.
+ * @param {CheckpointState} state
+ * @param {Partial<WorkerRunRecord> & { timestamp: string, status: CheckpointStatus }} run
+ * @returns {CheckpointState}
+ */
+export function recordWorkerRun(state, run) {
+  if (isCheckpointClosed(state)) return state;
+  return {
+    ...state,
+    workerRuns: [
+      ...(Array.isArray(state.workerRuns) ? state.workerRuns : []),
+      { ...run, agent: "ged-worker" },
+    ],
+  };
+}
+
+/**
  * Consume the planner checkpoint so the next source edit requires fresh planning.
  * Should be called after a commit succeeds, or in the commit guard before
  * allowing the commit through. If the commit fails, the agent must re-plan.
@@ -593,10 +764,12 @@ export function recordAutoCheckpoint(state, record, taskId) {
  * @returns {CheckpointState}
  */
 export function consumePlannerCheckpoint(state) {
-  return {
+  const next = {
     ...state,
     planCheckpoints: {},
   };
+  delete next.planAcceptance;
+  return next;
 }
 
 /**
@@ -663,13 +836,30 @@ export function invalidateVerifierCheckpoints(state) {
  * @returns {boolean}
  */
 export function isGitCommitCommand(command) {
-  const normalized = command
-    .replace(/\\\n/gu, " ")
+  return containsGitCommitCommand(command, 0);
+}
+
+/**
+ * @param {string} command
+ * @param {number} depth
+ * @returns {boolean}
+ */
+function containsGitCommitCommand(command, depth) {
+  if (depth > 3) return false;
+  const normalized = command.replace(/\\\n/gu, " ").trim();
+  const stripped = normalized
     .replace(/^(?:rtk\s+)?(?:env\s+(?:-[^\s]*\s+)*\s*)?(?:sudo\s+)?/u, "")
     .trim();
 
   const gitPattern = /(?:^|[|&;]\s*)git(?:\.(?:exe|cmd))?\b.*\bcommit\b/u;
-  return gitPattern.test(normalized);
+  if (gitPattern.test(stripped)) return true;
+
+  const shellPattern =
+    /(?:^|[|&;]\s*)(?:rtk\s+)?(?:env\s+(?:-[^\s]*\s+)*\s*)?(?:sudo\s+)?(?:bash|sh|zsh|fish)\s+(?:-[^\s]*\s+)*(?:-[^\s]*c[^\s]*|-c)\s+(["'])(.*?)\1/gu;
+  for (const match of stripped.matchAll(shellPattern)) {
+    if (containsGitCommitCommand(match[2], depth + 1)) return true;
+  }
+  return false;
 }
 
 /**

@@ -11,6 +11,11 @@ import {
   ensureGedReady,
   TRUNK_BRANCHES,
 } from "../src/brain.js";
+import {
+  initCheckpointState,
+  readCheckpointState,
+  writeCheckpointState,
+} from "../src/orchestration.js";
 
 async function createTempProject(prefix: string): Promise<string> {
   return mkdtemp(path.join(os.tmpdir(), prefix));
@@ -91,15 +96,17 @@ describe("Ged brain runtime", () => {
       "Do not end the turn after only describing the next step",
     );
     expect(prompt).toContain("make that tool call in the same response");
-    expect(prompt).toContain("do not say “I’ll inspect/plan/apply”");
+    expect(prompt).toContain('subagent({ agent: "ged-explorer"');
+    expect(prompt).toContain("ged-planner");
     expect(prompt).toContain("## Plan Review Preference");
     expect(prompt).toContain(
       "Current setting: Review with Plannotator (plannotator)",
     );
     expect(prompt).toContain("gedpi_plan_review");
     expect(prompt).toContain("fall back to chat approval");
+    expect(prompt).toContain("ged-planner authors the plan draft");
     expect(prompt).toContain(
-      "judging semantic sufficiency across the whole dispatch",
+      "Source edits are not safe until you have accepted/written the final plan",
     );
     expect(prompt).toContain("## Commit Preference");
     expect(prompt).toContain("Current setting: ask");
@@ -282,6 +289,211 @@ describe("Ged brain runtime", () => {
     expect(beforeStart.systemPrompt).not.toContain("interview tool");
   });
 
+  test("gedCoreExtension records subagent checkpoints only after completed results", async () => {
+    const rootDir = await createTempProject("ged-brain-subagent-results-");
+    await enableProjectSubagents(rootDir);
+    await writeCheckpointState(
+      rootDir,
+      initCheckpointState("non-trivial", "test subagent result recording"),
+    );
+    const handlers = new Map<string, Array<(...args: unknown[]) => unknown>>();
+    const eventHandlers = new Map<string, (...args: unknown[]) => unknown>();
+    const runHandler = async (event: string, ...args: unknown[]) => {
+      for (const handler of handlers.get(event) ?? []) await handler(...args);
+    };
+
+    await gedCoreExtension({
+      registerMessageRenderer() {
+        return undefined;
+      },
+      registerCommand() {},
+      registerShortcut() {},
+      registerTool() {},
+      sendMessage() {},
+      events: {
+        on(event: string, handler: (...args: unknown[]) => unknown) {
+          eventHandlers.set(event, handler);
+        },
+      },
+      on(event: string, handler: (...args: unknown[]) => unknown) {
+        handlers.set(event, [...(handlers.get(event) ?? []), handler]);
+      },
+    } as never);
+
+    await runHandler(
+      "session_start",
+      { type: "session_start" },
+      {
+        cwd: rootDir,
+        ui: {
+          setTitle() {},
+          setTheme() {},
+          setHeader() {},
+          notify() {},
+          setStatus() {},
+        },
+      },
+    );
+
+    await runHandler(
+      "tool_result",
+      {
+        type: "tool_result",
+        toolName: "subagent",
+        isError: false,
+        input: { agent: "ged-planner", async: true },
+        details: { mode: "single", asyncId: "async-1", results: [] },
+      },
+      { cwd: rootDir },
+    );
+    expect(
+      (await readCheckpointState(rootDir))?.planCheckpoints["ged-planner"],
+    ).toBeUndefined();
+
+    for (const childResult of [
+      { agent: "ged-planner", exitCode: 0, progress: { status: "running" } },
+      { agent: "ged-planner", exitCode: 0, status: "pending" },
+      { agent: "ged-planner", exitCode: 0, state: "paused" },
+    ]) {
+      await runHandler(
+        "tool_result",
+        {
+          type: "tool_result",
+          toolName: "subagent",
+          isError: false,
+          input: { agent: "ged-planner" },
+          details: {
+            mode: "single",
+            results: [childResult],
+          },
+        },
+        { cwd: rootDir },
+      );
+    }
+    await runHandler(
+      "tool_result",
+      {
+        type: "tool_result",
+        toolName: "subagent",
+        isError: false,
+        input: { agent: "ged-planner" },
+        details: {
+          mode: "single",
+          results: [{ agent: "ged-planner", exitCode: 0, detached: true }],
+        },
+      },
+      { cwd: rootDir },
+    );
+    await runHandler(
+      "tool_result",
+      {
+        type: "tool_result",
+        toolName: "subagent",
+        isError: false,
+        input: { agent: "ged-planner" },
+        details: {
+          mode: "single",
+          results: [{ agent: "ged-planner", exitCode: 0, interrupted: true }],
+        },
+      },
+      { cwd: rootDir },
+    );
+    expect(
+      (await readCheckpointState(rootDir))?.planCheckpoints["ged-planner"],
+    ).toBeUndefined();
+
+    await runHandler(
+      "tool_result",
+      {
+        type: "tool_result",
+        toolName: "subagent",
+        isError: false,
+        input: { agent: "ged-planner" },
+        details: {
+          mode: "single",
+          results: [{ agent: "ged-planner", exitCode: 0 }],
+        },
+      },
+      { cwd: rootDir },
+    );
+    expect(
+      (await readCheckpointState(rootDir))?.planCheckpoints["ged-planner"]
+        ?.source,
+    ).toBe("auto");
+
+    await runHandler(
+      "tool_result",
+      {
+        type: "tool_result",
+        toolName: "subagent",
+        isError: false,
+        input: { tasks: [{ agent: "ged-worker" }, { agent: "ged-worker" }] },
+        details: {
+          mode: "parallel",
+          runId: "parallel-run",
+          results: [
+            {
+              agent: "ged-worker",
+              exitCode: 0,
+              runId: "worker-1",
+              sliceId: "T01a",
+              artifactPath: ".pi/subagents/worker-1/output.md",
+              artifactPaths: { diffPath: ".pi/subagents/worker-1/diff.patch" },
+              sessionFile: ".pi/sessions/worker-1.jsonl",
+              worktreePath: "/tmp/worktree-1",
+              worktree: true,
+            },
+            {
+              agent: "ged-worker",
+              exitCode: 0,
+              runId: "worker-2",
+              sliceId: "T01b",
+            },
+          ],
+        },
+      },
+      { cwd: rootDir },
+    );
+
+    const workerState = await readCheckpointState(rootDir);
+    expect(workerState?.workerRuns).toHaveLength(2);
+    expect(workerState?.workerRuns?.[0]).toMatchObject({
+      agent: "ged-worker",
+      source: "auto",
+      runId: "worker-1",
+      sliceId: "T01a",
+      diffPath: ".pi/subagents/worker-1/diff.patch",
+      sessionPath: ".pi/sessions/worker-1.jsonl",
+      worktree: true,
+      sourceMode: "foreground",
+    });
+
+    eventHandlers.get("subagent:async-complete")?.({
+      mode: "single",
+      agent: "ged-worker",
+      success: true,
+      runId: "async-run",
+      asyncId: "async-run",
+      sliceId: "T01c",
+      artifactPath: ".pi/subagents/worker-async/output.md",
+    });
+    let asyncState = await readCheckpointState(rootDir);
+    for (
+      let attempt = 0;
+      attempt < 20 && asyncState?.workerRuns?.length !== 3;
+      attempt++
+    ) {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      asyncState = await readCheckpointState(rootDir);
+    }
+    expect(asyncState?.workerRuns).toHaveLength(3);
+    expect(asyncState?.workerRuns?.[2]).toMatchObject({
+      runId: "async-run",
+      sliceId: "T01c",
+      sourceMode: "async",
+    });
+  });
+
   test("gedCoreExtension explorer-first guard gives immediate recovery steps", async () => {
     const rootDir = await createTempProject("ged-brain-guard-");
     await enableProjectSubagents(rootDir);
@@ -338,14 +550,29 @@ describe("Ged brain runtime", () => {
     );
 
     const result = (await handlers.get("tool_call")?.(
-      { input: { toolName: "read", path: "src/index.ts" } },
+      { toolName: "read", input: { path: "src/index.ts" } },
       { cwd: rootDir },
     )) as { block: boolean; reason: string };
 
     expect(result.block).toBe(true);
-    expect(result.reason).toContain("dispatch ged-explorer now");
-    expect(result.reason).toContain("retrieve the result");
+    expect(result.reason).toContain("dispatch ged-explorer with subagent now");
+    expect(result.reason).toContain("wait for the result");
     expect(result.reason).toContain("then continue");
-    expect(messages.at(-1)?.content).toContain("get_subagent_result");
+    expect(messages.at(-1)?.content).toContain("subagent tool");
+
+    const gedWrite = await handlers.get("tool_call")?.(
+      {
+        toolName: "write",
+        input: { path: ".ged/runtime/root/checkpoints.json" },
+      },
+      { cwd: rootDir },
+    );
+    expect(gedWrite).toBeUndefined();
+
+    const bashBypass = (await handlers.get("tool_call")?.(
+      { toolName: "bash", input: { command: "git status; cat src/index.ts" } },
+      { cwd: rootDir },
+    )) as { block: boolean; reason: string };
+    expect(bashBypass.block).toBe(true);
   });
 });

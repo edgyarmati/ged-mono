@@ -3,13 +3,25 @@
  */
 
 export type TaskClassification = "trivial" | "non-trivial";
-export type CheckpointAgent = "ged-explorer" | "ged-planner" | "ged-verifier";
-export type PlanCheckpointAgent = "ged-explorer" | "ged-planner";
-export type TaskCheckpointAgent = "ged-explorer" | "ged-verifier";
-export type CheckpointSource = "auto" | "manual";
+export type CheckpointAgent =
+  | "ged-explorer"
+  | "ged-planner"
+  | "ged-plan-reviewer"
+  | "ged-verifier"
+  | "ged-worker";
+export type PlanCheckpointAgent =
+  | "ged-explorer"
+  | "ged-planner"
+  | "ged-plan-reviewer";
+export type TaskCheckpointAgent =
+  | "ged-explorer"
+  | "ged-verifier"
+  | "ged-worker";
+export type CheckpointSource = "auto" | "manual" | "fallback";
 export type CheckpointStatus = "completed" | "skipped" | "blocked" | "failed";
 export type CheckpointLifecycleStatus = "active" | "verified" | "closed";
 export type PlannerOutcome = "planned" | "refused-needs-clarification";
+export type SubagentSourceMode = "foreground" | "async" | "fallback";
 
 export interface CheckpointRecord {
   agent: CheckpointAgent;
@@ -20,6 +32,42 @@ export interface CheckpointRecord {
   outcome?: PlannerOutcome;
   findingCount?: number;
   blocksCommit?: boolean;
+  runId?: string;
+  taskId?: string;
+  sliceId?: string;
+  artifactPath?: string;
+  artifactPaths?: Record<string, unknown>;
+  diffPath?: string;
+  sessionPath?: string;
+  worktreePath?: string;
+  worktree?: boolean;
+  sourceMode?: SubagentSourceMode;
+}
+
+export interface PlanAcceptanceRecord {
+  status: "accepted";
+  source: "manual" | "fallback";
+  timestamp: string;
+  planPaths: string[];
+  summary?: string;
+  skipReason?: string;
+}
+
+export interface WorkerRunRecord {
+  agent: "ged-worker";
+  timestamp: string;
+  status: CheckpointStatus;
+  source?: CheckpointSource;
+  runId?: string;
+  taskId?: string;
+  sliceId?: string;
+  artifactPath?: string;
+  artifactPaths?: Record<string, unknown>;
+  diffPath?: string;
+  sessionPath?: string;
+  worktreePath?: string;
+  worktree?: boolean;
+  sourceMode?: SubagentSourceMode;
 }
 
 export interface ClarificationEvidence {
@@ -44,11 +92,13 @@ export interface CheckpointState {
   classification: TaskClassification;
   classificationReason: string;
   clarification?: ClarificationRecord;
+  planAcceptance?: PlanAcceptanceRecord;
   planCheckpoints: Partial<Record<PlanCheckpointAgent, CheckpointRecord>>;
   taskCheckpoints: Record<
     string,
     Partial<Record<TaskCheckpointAgent, CheckpointRecord>>
   >;
+  workerRuns?: WorkerRunRecord[];
 }
 
 export interface CheckpointValidation {
@@ -95,6 +145,17 @@ export function recordAutoCheckpoint(
   state: CheckpointState,
   record: CheckpointRecord,
   taskId?: string,
+): CheckpointState;
+export function recordPlanAcceptance(
+  state: CheckpointState,
+  record: PlanAcceptanceRecord,
+): CheckpointState;
+export function recordWorkerRun(
+  state: CheckpointState,
+  run: Partial<WorkerRunRecord> & {
+    timestamp: string;
+    status: CheckpointStatus;
+  },
 ): CheckpointState;
 export function consumePlannerCheckpoint(
   state: CheckpointState,

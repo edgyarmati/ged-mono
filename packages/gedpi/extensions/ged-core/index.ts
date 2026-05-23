@@ -1,4 +1,3 @@
-import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import {
@@ -57,9 +56,17 @@ import { buildOnboardingInterviewKickoff } from "../../src/workflow.js";
 const touchedSourceFiles = new Set<string>();
 let activeCwd: string | undefined;
 
+type GedSubagentCompletion = {
+  name: string;
+  status: "completed" | "failed";
+  metadata?: Record<string, unknown>;
+};
+
 async function recordGedSubagentCheckpoint(
   cwd: string,
   subagentName: string,
+  status: "completed" | "failed" = "completed",
+  metadata: Record<string, unknown> = {},
 ): Promise<void> {
   let state = await readCheckpointState(cwd);
   if (!state) {
@@ -73,13 +80,14 @@ async function recordGedSubagentCheckpoint(
     };
   }
   const isTaskAgent =
-    subagentName === "ged-explorer" || subagentName === "ged-verifier";
+    subagentName === "ged-verifier" || subagentName === "ged-worker";
   const recorded = recordAutoCheckpoint(
     state,
     {
       agent: subagentName as CheckpointAgent,
       timestamp: new Date().toISOString(),
-      status: "completed",
+      status,
+      ...metadata,
       // Verifiers start with blocksCommit: false until they report findings.
       // The agent adjudicates findings and the verifier re-runs with findings.
       blocksCommit: subagentName === "ged-verifier" ? undefined : undefined,
@@ -87,10 +95,280 @@ async function recordGedSubagentCheckpoint(
     isTaskAgent ? "auto" : undefined,
   );
   const next =
-    subagentName === "ged-verifier"
+    subagentName === "ged-verifier" && status === "completed"
       ? markCheckpointVerified(recorded)
       : recorded;
   await writeCheckpointState(cwd, next);
+}
+
+async function recordGedSubagentCompletions(
+  cwd: string,
+  completions: GedSubagentCompletion[],
+): Promise<void> {
+  const seen = new Set<string>();
+  for (const completion of completions) {
+    if (completion.name !== "ged-worker") {
+      if (seen.has(completion.name)) continue;
+      seen.add(completion.name);
+    }
+    await recordGedSubagentCheckpoint(
+      cwd,
+      completion.name,
+      completion.status,
+      completion.metadata,
+    );
+  }
+}
+
+function subagentCompletionRecords(
+  raw: unknown,
+  sourceMode: "foreground" | "async",
+): GedSubagentCompletion[] {
+  const result = raw as {
+    agent?: unknown;
+    success?: unknown;
+    status?: unknown;
+    state?: unknown;
+    exitCode?: unknown;
+    detached?: unknown;
+    interrupted?: unknown;
+    progress?: { status?: unknown };
+    runId?: unknown;
+    asyncId?: unknown;
+    results?: Array<{
+      agent?: unknown;
+      success?: unknown;
+      status?: unknown;
+      state?: unknown;
+      exitCode?: unknown;
+      detached?: unknown;
+      interrupted?: unknown;
+      progress?: { status?: unknown };
+      runId?: unknown;
+      taskId?: unknown;
+      sliceId?: unknown;
+      artifactPath?: unknown;
+      artifactPaths?: unknown;
+      diffPath?: unknown;
+      sessionPath?: unknown;
+      sessionFile?: unknown;
+      worktreePath?: unknown;
+      worktree?: unknown;
+    }>;
+  };
+  const completions: GedSubagentCompletion[] = [];
+  if (isSuccessfulSubagentResult(result) && typeof result.agent === "string") {
+    const detected = detectSubagentDispatch("subagent", {
+      agent: result.agent,
+    });
+    if (detected) {
+      completions.push({
+        name: detected,
+        status: "completed",
+        metadata: workerMetadata(
+          result as Record<string, unknown>,
+          result as Record<string, unknown>,
+          sourceMode,
+        ),
+      });
+    }
+  }
+  if (Array.isArray(result.results)) {
+    for (const child of result.results) {
+      if (
+        !isSuccessfulSubagentResult(child) ||
+        typeof child.agent !== "string"
+      ) {
+        continue;
+      }
+      const detected = detectSubagentDispatch("subagent", {
+        agent: child.agent,
+      });
+      if (detected) {
+        completions.push({
+          name: detected,
+          status: "completed",
+          metadata: workerMetadata(
+            child as Record<string, unknown>,
+            result as Record<string, unknown>,
+            sourceMode,
+          ),
+        });
+      }
+    }
+  }
+  return completions;
+}
+
+function stringField(
+  primary: Record<string, unknown>,
+  secondary: Record<string, unknown>,
+  keys: string[],
+): string | undefined {
+  for (const key of keys) {
+    const value = primary[key] ?? secondary[key];
+    if (typeof value === "string" && value.trim().length > 0) return value;
+  }
+  return undefined;
+}
+
+function workerMetadata(
+  result: Record<string, unknown>,
+  parent: Record<string, unknown>,
+  sourceMode: "foreground" | "async",
+): Record<string, unknown> | undefined {
+  const detected = detectSubagentDispatch("subagent", {
+    agent: result.agent,
+  });
+  if (detected !== "ged-worker") return undefined;
+  const artifactPaths =
+    result.artifactPaths &&
+    typeof result.artifactPaths === "object" &&
+    !Array.isArray(result.artifactPaths)
+      ? (result.artifactPaths as Record<string, unknown>)
+      : undefined;
+  const metadata: Record<string, unknown> = { sourceMode };
+  const runId = stringField(result, parent, ["runId", "asyncId"]);
+  if (runId) metadata.runId = runId;
+  const taskId = stringField(result, parent, ["taskId"]);
+  if (taskId) metadata.taskId = taskId;
+  const sliceId = stringField(result, parent, ["sliceId"]);
+  if (sliceId) metadata.sliceId = sliceId;
+  const artifactPath = stringField(result, parent, ["artifactPath"]);
+  if (artifactPath) metadata.artifactPath = artifactPath;
+  if (artifactPaths) metadata.artifactPaths = artifactPaths;
+  const diffPath =
+    stringField(result, parent, ["diffPath"]) ??
+    (typeof artifactPaths?.diffPath === "string"
+      ? artifactPaths.diffPath
+      : undefined);
+  if (diffPath) metadata.diffPath = diffPath;
+  const sessionPath = stringField(result, parent, [
+    "sessionPath",
+    "sessionFile",
+  ]);
+  if (sessionPath) metadata.sessionPath = sessionPath;
+  const worktreePath = stringField(result, parent, ["worktreePath"]);
+  if (worktreePath) metadata.worktreePath = worktreePath;
+  const worktree = result.worktree ?? parent.worktree;
+  if (typeof worktree === "boolean") metadata.worktree = worktree;
+  return metadata;
+}
+
+function isGedPath(filePath: string): boolean {
+  const normalized = filePath.replace(/\\/gu, "/");
+  return normalized.startsWith(".ged/") || normalized.includes("/.ged/");
+}
+
+function isSafePreExplorerBashCommand(command: string): boolean {
+  const normalized = command.replace(/\\\n/gu, " ").trim();
+  if (!normalized) return false;
+  if (/[;&|`]/u.test(normalized) || normalized.includes("$(")) return false;
+  if (/^(?:bash|sh|zsh|fish)\s+(?:-[^\s]*\s+)*-?c\b/u.test(normalized)) {
+    return false;
+  }
+  return /^git(?:\.(?:exe|cmd))?\s+(?:--no-pager\s+)?(?:status|branch|log|diff)(?:\s|$)/u.test(
+    normalized,
+  );
+}
+
+function isSuccessfulSubagentResult(result: {
+  success?: unknown;
+  status?: unknown;
+  state?: unknown;
+  exitCode?: unknown;
+  detached?: unknown;
+  interrupted?: unknown;
+  progress?: { status?: unknown };
+}): boolean {
+  if (result.detached === true || result.interrupted === true) return false;
+  if (
+    result.progress?.status === "running" ||
+    result.progress?.status === "pending" ||
+    result.progress?.status === "paused" ||
+    result.progress?.status === "detached"
+  ) {
+    return false;
+  }
+  if (
+    result.status === "failed" ||
+    result.status === "paused" ||
+    result.status === "detached" ||
+    result.status === "running" ||
+    result.status === "pending"
+  ) {
+    return false;
+  }
+  if (
+    result.state === "failed" ||
+    result.state === "paused" ||
+    result.state === "detached" ||
+    result.state === "running" ||
+    result.state === "pending"
+  ) {
+    return false;
+  }
+  if (typeof result.success === "boolean") return result.success;
+  if (typeof result.exitCode === "number") return result.exitCode === 0;
+  if (result.status === "completed") return true;
+  if (result.state === "complete" || result.state === "completed") return true;
+  return false;
+}
+
+function subagentForegroundCompletionRecords(
+  details: unknown,
+): GedSubagentCompletion[] {
+  if (!details || typeof details !== "object" || Array.isArray(details)) {
+    return [];
+  }
+  const record = details as Record<string, unknown>;
+  if (typeof record.asyncId === "string") return [];
+  if (!Array.isArray(record.results)) return [];
+  const completions: GedSubagentCompletion[] = [];
+  for (const child of record.results) {
+    if (!child || typeof child !== "object" || Array.isArray(child)) continue;
+    const result = child as {
+      agent?: unknown;
+      success?: unknown;
+      status?: unknown;
+      state?: unknown;
+      exitCode?: unknown;
+      detached?: unknown;
+      interrupted?: unknown;
+      progress?: { status?: unknown };
+      runId?: unknown;
+      taskId?: unknown;
+      sliceId?: unknown;
+      artifactPath?: unknown;
+      artifactPaths?: unknown;
+      diffPath?: unknown;
+      sessionPath?: unknown;
+      sessionFile?: unknown;
+      worktreePath?: unknown;
+      worktree?: unknown;
+    };
+    if (
+      !isSuccessfulSubagentResult(result) ||
+      typeof result.agent !== "string"
+    ) {
+      continue;
+    }
+    const detected = detectSubagentDispatch("subagent", {
+      agent: result.agent,
+    });
+    if (detected) {
+      completions.push({
+        name: detected,
+        status: "completed",
+        metadata: workerMetadata(
+          result as Record<string, unknown>,
+          record,
+          "foreground",
+        ),
+      });
+    }
+  }
+  return completions;
 }
 
 export default async function gedCoreExtension(
@@ -110,6 +388,15 @@ export default async function gedCoreExtension(
     });
     if (!subagentName) return;
     void recordGedSubagentCheckpoint(activeCwd, subagentName).catch(() => {
+      // Non-fatal — lifecycle events should not break the subagent runtime.
+    });
+  });
+
+  api.events?.on("subagent:async-complete", (raw: unknown) => {
+    if (!activeCwd) return;
+    const completions = subagentCompletionRecords(raw, "async");
+    if (completions.length === 0) return;
+    void recordGedSubagentCompletions(activeCwd, completions).catch(() => {
       // Non-fatal — lifecycle events should not break the subagent runtime.
     });
   });
@@ -198,8 +485,16 @@ export default async function gedCoreExtension(
   // ─── Tool call interception (hard guards) ───────────────────────
 
   api.on("tool_call", async (event, ctx) => {
-    const input = event.input as Record<string, unknown>;
-    const toolName: string = (input.toolName as string) ?? "";
+    const input =
+      event.input && typeof event.input === "object"
+        ? (event.input as Record<string, unknown>)
+        : {};
+    const toolName =
+      typeof event.toolName === "string"
+        ? event.toolName
+        : typeof input.toolName === "string"
+          ? input.toolName
+          : "";
 
     // --- Explorer-first guard: block source inspection before explorer runs ---
     // Non-trivial work must dispatch ged-explorer before reading source files.
@@ -210,10 +505,8 @@ export default async function gedCoreExtension(
       toolName === "find" ||
       (toolName === "bash" &&
         typeof (input as Record<string, unknown>).command === "string" &&
-        !["git status", "git branch", "git log", "git diff"].some((safe) =>
-          ((input as Record<string, unknown>).command as string).startsWith(
-            safe,
-          ),
+        !isSafePreExplorerBashCommand(
+          (input as Record<string, unknown>).command as string,
         ));
 
     if (sourceInspectingTool) {
@@ -238,7 +531,7 @@ export default async function gedCoreExtension(
               customType: "ged-checkpoint-blocked",
               content: isCheckpointClosed(state)
                 ? "GedPi checkpoint guard: previous task is closed. Classify the current task first before inspecting source files. Only .md and .ged/ files may be read for recovery."
-                : "GedPi explorer-first guard: for non-trivial work, source file inspection (read/grep/find) is blocked until ged-explorer has completed its initial reconnaissance. Recovery: dispatch ged-explorer with the Agent tool now, retrieve the result with get_subagent_result(..., wait: true), then continue the workflow. Only .md and .ged/ files may be read before explorer runs.",
+                : "GedPi explorer-first guard: for non-trivial work, source file inspection (read/grep/find) is blocked until ged-explorer has completed its initial reconnaissance. Recovery: dispatch ged-explorer with the subagent tool now, wait for the result, then continue the workflow. Only .md and .ged/ files may be read before explorer runs.",
               display: true,
               details: {
                 title: "explorer-first-guard",
@@ -249,7 +542,7 @@ export default async function gedCoreExtension(
               block: true,
               reason: isCheckpointClosed(state)
                 ? "GedPi checkpoint guard: classify the current task before inspecting source files."
-                : "GedPi explorer-first guard: dispatch ged-explorer now, retrieve the result, then continue before inspecting source files.",
+                : "GedPi explorer-first guard: dispatch ged-explorer with subagent now, wait for the result, then continue before inspecting source files.",
             };
           }
         }
@@ -262,11 +555,7 @@ export default async function gedCoreExtension(
           "",
       );
       // Allow .ged/ writes unconditionally
-      if (
-        filePath.includes(`${path.sep}.ged${path.sep}`) ||
-        filePath.includes("/.ged/") ||
-        filePath.includes("\\.ged\\")
-      ) {
+      if (isGedPath(filePath)) {
         return;
       }
 
@@ -365,6 +654,13 @@ export default async function gedCoreExtension(
   });
 
   api.on("tool_result", async (event, ctx) => {
+    if (event.toolName === "subagent" && !event.isError) {
+      const completions = subagentForegroundCompletionRecords(event.details);
+      if (completions.length > 0) {
+        await recordGedSubagentCompletions(ctx.cwd, completions);
+      }
+    }
+
     if (event.toolName !== "bash" || event.isError) return;
     const input = event.input as Record<string, unknown>;
     const command = input.command;
