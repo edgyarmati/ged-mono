@@ -6,6 +6,7 @@
 
 - Removed unused direct `@anthropic-ai/claude-agent-sdk` and `zod` dependencies from GedPi.
 - Removed the `amp-themes` dependency and its bundled `pi-tool-display` path by localizing the shipped Amp-style themes and user-message styling.
+- Bumped GedPi's Pi runtime from `@earendil-works/pi-coding-agent` 0.75.3 to 0.75.4 and regenerated the package lock to clear the remaining production audit vulnerabilities.
 
 ### Fixes
 
