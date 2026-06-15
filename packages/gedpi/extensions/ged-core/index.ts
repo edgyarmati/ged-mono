@@ -506,7 +506,11 @@ export default async function gedCoreExtension(
     const sourceInspectingTool =
       toolName === "read" ||
       toolName === "grep" ||
+      toolName === "ffgrep" ||
       toolName === "find" ||
+      toolName === "fffind" ||
+      toolName === "multi_grep" ||
+      toolName === "fff-multi-grep" ||
       (toolName === "bash" &&
         typeof (input as Record<string, unknown>).command === "string" &&
         !isSafePreExplorerBashCommand(
@@ -523,7 +527,7 @@ export default async function gedCoreExtension(
         if (!hasExplorerClearedInspection(state)) {
           // Allow .md files and .ged/ paths unconditionally
           const targetPath =
-            toolName === "read" || toolName === "grep"
+            toolName === "read" || toolName === "grep" || toolName === "ffgrep"
               ? String(
                   (input as Record<string, unknown>).filePath ??
                     (input as Record<string, unknown>).path ??
@@ -535,7 +539,7 @@ export default async function gedCoreExtension(
               customType: "ged-checkpoint-blocked",
               content: isCheckpointClosed(state)
                 ? "GedPi checkpoint guard: previous task is closed. Classify the current task first before inspecting source files. Only .md and .ged/ files may be read for recovery."
-                : "GedPi explorer-first guard: for non-trivial work, source file inspection (read/grep/find) is blocked until ged-explorer has completed its initial reconnaissance. Recovery: dispatch ged-explorer with the subagent tool now, wait for the result, then continue the workflow. Only .md and .ged/ files may be read before explorer runs.",
+                : "GedPi explorer-first guard: for non-trivial work, source file inspection (read/grep/find, including FFF-backed search) is blocked until ged-explorer has completed its initial reconnaissance. Recovery: dispatch ged-explorer with the subagent tool now, wait for the result, then continue the workflow. Only .md and .ged/ files may be read before explorer runs.",
               display: true,
               details: {
                 title: "explorer-first-guard",

@@ -119,6 +119,7 @@ export function buildGedEnvironment(baseEnv = process.env) {
   return {
     ...baseEnv,
     PI_SKIP_VERSION_CHECK: "1",
+    PI_FFF_MODE: baseEnv.PI_FFF_MODE ?? "override",
   };
 }
 

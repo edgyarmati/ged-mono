@@ -50,6 +50,13 @@ describe("ged launcher", () => {
 
     expect(env.FOO).toBe("bar");
     expect(env.PI_SKIP_VERSION_CHECK).toBe("1");
+    expect(env.PI_FFF_MODE).toBe("override");
+  });
+
+  test("buildGedEnvironment preserves explicit FFF mode overrides", () => {
+    const env = buildGedEnvironment({ PI_FFF_MODE: "tools-only" });
+
+    expect(env.PI_FFF_MODE).toBe("tools-only");
   });
 
   test("buildPiProcessSpec launches Node with the Pi CLI and Ged package path", () => {

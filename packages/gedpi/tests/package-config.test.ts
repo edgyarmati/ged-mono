@@ -32,6 +32,20 @@ describe("package Pi configuration", () => {
     expect(gedCoreIndex).toBeGreaterThanOrEqual(0);
   });
 
+  test("FFF search extension is bundled for override-mode search", async () => {
+    const packageJson = JSON.parse(
+      await readFile(path.join(process.cwd(), "package.json"), "utf8"),
+    ) as {
+      pi?: { extensions?: string[] };
+      dependencies?: Record<string, string>;
+    };
+
+    expect(packageJson.dependencies?.["@ff-labs/pi-fff"]).toBe("^0.9.4");
+    expect(packageJson.pi?.extensions ?? []).toContain(
+      "./node_modules/@ff-labs/pi-fff/src/index.ts",
+    );
+  });
+
   test("latest scoped Pi review dependencies are configured", async () => {
     const packageJson = JSON.parse(
       await readFile(path.join(process.cwd(), "package.json"), "utf8"),

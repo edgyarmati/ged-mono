@@ -4,6 +4,7 @@
 
 ### Dependencies
 
+- Added `@ff-labs/pi-fff` so GedPi bundles FFF's Rust-backed indexed file and content search extension.
 - Bumped GedPi's Pi runtime dependencies and compatibility aliases to 0.79.4, `@plannotator/pi-extension` to 0.20.2, and `@howaboua/pi-codex-conversion` to 2.0.1 after compatibility review of Pi 0.79 and the Codex adapter PATH-tool rewrite.
 - Remediated high-severity npm audit findings by updating `vitest` to 4.1.9 and forcing `esbuild` to 0.28.1 across transitive dependency paths.
 - Bumped GedPi's Pi runtime dependencies and compatibility aliases from 0.77.0 to 0.78.1 after reviewing the Pi 0.78.0 and 0.78.1 release notes.
@@ -16,6 +17,7 @@
 
 ### Features
 
+- Defaulted GedPi launches to FFF `override` mode, replacing Pi's `find`/`grep` search tools while preserving explicit `PI_FFF_MODE` overrides.
 - Added `ctx.mode`-aware guards for GedPi's terminal-only shell UI and documented structured worker `acceptance` contracts plus deferred orchestration follow-ups for parallel explorers and structured evidence.
 - Added fallback thinking-level selection to advanced `/ged-agents setup`, preserving explicit choices with pi-subagents-compatible model suffixes.
 - Added the selectable `ghostlight` theme plus a GedPi-branded terminal shell with custom input border, footer, and working indicator.

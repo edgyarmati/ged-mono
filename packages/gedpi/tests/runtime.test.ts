@@ -75,6 +75,18 @@ describe("Ged runtime flow", () => {
     });
   });
 
+  test("bundles FFF Pi search extension", () => {
+    expect(packageJson.dependencies).toMatchObject({
+      "@ff-labs/pi-fff": "^0.9.4",
+    });
+    expect(packageJson.pi.extensions).toContain(
+      "./node_modules/@ff-labs/pi-fff/src/index.ts",
+    );
+    expect(packageLock.packages["node_modules/@ff-labs/pi-fff"]).toMatchObject({
+      version: "0.9.4",
+    });
+  });
+
   test("configured Pi extension paths exist", async () => {
     await Promise.all(
       packageJson.pi.extensions

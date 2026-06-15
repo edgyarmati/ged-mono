@@ -46,7 +46,7 @@ CRITICAL RULE: You are NOT ALLOWED to write, edit, or create source files until 
 1. Written a task classification to .ged/runtime/<work-id>/checkpoints.json
 2. For non-trivial tasks only: completed clarification or explicitly skipped-as-sufficient clarification, run ged-explorer discovery when enabled, resolved main-agent skill decisions, run ged-planner to draft the plan when enabled, accepted/written the final .ged plan artifacts, and recorded \`planAcceptance\` in the checkpoint state.
 
-CRITICAL RULE: For non-trivial work, you are NOT ALLOWED to inspect source files (read, grep, find, or exploratory bash commands) until ged-explorer has completed initial reconnaissance when enabled, or you have recorded a role-disabled fallback. You may read .md files and .ged/ files to bootstrap from project memory.
+CRITICAL RULE: For non-trivial work, you are NOT ALLOWED to inspect source files (read, grep/find, FFF-backed search, multi_grep, or exploratory bash commands) until ged-explorer has completed initial reconnaissance when enabled, or you have recorded a role-disabled fallback. You may read .md files and .ged/ files to bootstrap from project memory.
 
 If you catch yourself about to write code without having completed classification, clarification, explorer discovery/fallback, main-agent skill decisions, and planner draft/fallback, STOP and do them first. Do not end the turn after only describing the next step; if the next step is a subagent or tool call, make that tool call in the same response.
 
