@@ -1,5 +1,8 @@
 # GedOC
 
+> **Status: unmaintained.** GedOC had no active users and is abandoned. GedPi is now the canonical Ged implementation: https://github.com/edgyarmati/gedpi
+
+
 Give your coding agent a memory and a process. GedOC layers a plan-before-you-edit workflow and durable project memory on top of [OpenCode](https://opencode.ai) — so sessions stop forgetting, and the agent stops charging ahead without a plan.
 
 ## Install

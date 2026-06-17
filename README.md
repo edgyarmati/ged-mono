@@ -1,25 +1,26 @@
 # ged-mono
 
-Monorepo for the **Ged workflow layer** — interview, plan, build, and verify code in bounded slices.
+Historical monorepo for the Ged workflow layer.
 
-Continues and merges:
-- **[omnicode](https://github.com/edgyarmati/omnicode)** — OpenCode plugin + launcher (archived)
-- **[Omni-Pi](https://github.com/edgyarmati/Omni-Pi)** — Pi plugin + brain + extensions (archived)
+## Current status
 
-## Packages
+GedPi has moved to its own repository and is now the canonical implementation:
 
-| Package | Description |
-|---------|-------------|
-| [`packages/gedoc/`](packages/gedoc/) | GedOC: OpenCode plugin + launcher |
-| [`packages/gedpi/`](packages/gedpi/) | GedPi: Pi plugin + brain + extensions |
+- **GedPi:** https://github.com/edgyarmati/gedpi
 
-## Setup
+GedOC had no active users and is no longer maintained. This repository is kept only as a historical extraction point for the old monorepo layout.
 
-```bash
-npm install
-npm run check
-npm test
-```
+## Preservation tags
+
+- `ged-mono-before-gedpi-extract` marks the monorepo state before GedPi was extracted.
+- The renamed GedPi repository has `omnipi-before-gedpi-reextract` for the pre-extraction Omni-Pi/GedPi repo state.
+
+## Former packages
+
+| Package | Status |
+|---------|--------|
+| `packages/gedpi/` | Moved to https://github.com/edgyarmati/gedpi |
+| `packages/gedoc/` | Unmaintained / abandoned |
 
 ## License
 
